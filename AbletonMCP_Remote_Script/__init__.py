@@ -17,11 +17,11 @@ except ImportError:
 
 # Constants for socket communication
 DEFAULT_PORT = 9877
-HOST = "0.0.0.0"
+HOST = "127.0.0.1"
 
 # Bumped whenever the TCP command surface changes; the MCP server compares
 # this to EXPECTED_REMOTE_SCRIPT_VERSION.
-SCRIPT_VERSION = "1.7.0"
+SCRIPT_VERSION = "1.7.1"
 PROTOCOL_VERSION = 1
 
 SCRIPT_CAPABILITIES = [
@@ -44,6 +44,9 @@ SCRIPT_CAPABILITIES = [
     "create_locator",
     "delete_clip",
     "clear_notes_from_clip",
+    "get_browser_categories",
+    "get_browser_items",
+    "save_set",
 ]
 
 def create_instance(c_instance):
@@ -291,7 +294,8 @@ class AbletonMCP(ControlSurface):
                                  "switch_to_arrangement_view", "set_current_song_time",
                                  "duplicate_session_clip_to_arrangement",
                                  "map_rack_magnitude", "inspect_rack",
-                                 "create_locator"]:
+                                 "create_locator",
+                                 "save_set"]:
                 # Use a thread-safe approach with a response queue
                 response_queue = queue.Queue()
                 
@@ -391,6 +395,8 @@ class AbletonMCP(ControlSurface):
                             name = params.get("name", "")
                             time_val = params.get("time", 0.0)
                             result = self._create_locator(name, time_val)
+                        elif command_type == "save_set":
+                            result = self._save_set(params.get("path"))
 
                         # Put the result in the queue
                         response_queue.put({"status": "success", "result": result})
@@ -780,15 +786,38 @@ class AbletonMCP(ControlSurface):
             
             clip = clip_slot.clip
             
-            # Convert note data to Live's format
+            # Convert note data to Live's format.
+            # start_time is required: silently defaulting a missing key to 0.0
+            # stacked every note on beat zero, which is worse than failing.
             live_notes = []
-            for note in notes:
-                pitch = note.get("pitch", 60)
-                start_time = note.get("start_time", 0.0)
-                duration = note.get("duration", 0.25)
-                velocity = note.get("velocity", 100)
-                mute = note.get("mute", False)
-                
+            for index, note in enumerate(notes):
+                if not isinstance(note, dict):
+                    raise ValueError(
+                        "note %d is not an object: %r" % (index, note))
+                if "start_time" in note:
+                    start_time = note["start_time"]
+                elif "start_beat" in note:  # accepted alias
+                    start_time = note["start_beat"]
+                else:
+                    raise ValueError(
+                        "note %d has no start_time (or start_beat): %r"
+                        % (index, note))
+                try:
+                    start_time = float(start_time)
+                    pitch = int(note.get("pitch", 60))
+                    duration = float(note.get("duration", 0.25))
+                    velocity = int(note.get("velocity", 100))
+                except (TypeError, ValueError):
+                    raise ValueError(
+                        "note %d has a non-numeric field: %r" % (index, note))
+                if start_time < 0.0:
+                    raise ValueError(
+                        "note %d has a negative start_time: %r" % (index, note))
+                if duration <= 0.0:
+                    raise ValueError(
+                        "note %d has a non-positive duration: %r" % (index, note))
+                mute = bool(note.get("mute", False))
+
                 live_notes.append((pitch, start_time, duration, velocity, mute))
             
             # Add the notes
@@ -1130,41 +1159,54 @@ class AbletonMCP(ControlSurface):
     def _create_locator(self, name, time_val):
         """Create (or rename) a named locator at the given beat position.
 
-        Uses Live's Song.set_or_delete_cue(), which toggles a cue at the
-        current_song_time. We temporarily move the playhead, toggle, then
-        restore. If a cue already exists at that time we just rename it
-        instead of toggling (which would delete it).
+        Uses Live's Song.set_or_delete_cue(), which toggles a cue at
+        current_song_time. With the transport stopped Live may snap the
+        playhead to the nearest grid position, so the cue can land close to -
+        rather than exactly on - the requested beat. Accept the snapped
+        position and report it instead of failing, and always restore the
+        playhead.
         """
         try:
             song = self._song
             target_time = float(time_val)
-            tolerance = 1e-3
+            exact_tolerance = 1e-3
+            # One beat: covers Live snapping the stopped playhead to the grid.
+            snap_tolerance = 1.0
 
-            # See if a cue already exists at (or near) the target time
-            existing = None
-            for cue in song.cue_points:
-                if abs(cue.time - target_time) < tolerance:
-                    existing = cue
-                    break
+            def nearest_cue(tolerance):
+                best = None
+                best_delta = None
+                for cue in song.cue_points:
+                    delta = abs(cue.time - target_time)
+                    if delta <= tolerance and (best_delta is None or delta < best_delta):
+                        best = cue
+                        best_delta = delta
+                return best
 
+            existing = nearest_cue(exact_tolerance)
             original_time = song.current_song_time
+            created = False
 
             if existing is None:
-                # Move playhead, toggle to create, then locate the new cue
                 song.current_song_time = target_time
+                landed_time = song.current_song_time
                 song.set_or_delete_cue()
-                for cue in song.cue_points:
-                    if abs(cue.time - target_time) < tolerance:
-                        existing = cue
-                        break
-                # Restore playhead
+                created = True
+                existing = nearest_cue(exact_tolerance)
+                if existing is None:
+                    # Live snapped the playhead; take the cue it actually made.
+                    existing = nearest_cue(snap_tolerance)
                 try:
                     song.current_song_time = original_time
                 except Exception:
                     pass
-
-            if existing is None:
-                raise Exception("Failed to create cue at time " + str(target_time))
+                if existing is None:
+                    raise Exception(
+                        "Failed to create cue at time %s (playhead landed at %s "
+                        "with the transport %s); no cue appeared within %s beats."
+                        % (target_time, landed_time,
+                           "playing" if song.is_playing else "stopped",
+                           snap_tolerance))
 
             if name:
                 try:
@@ -1175,11 +1217,91 @@ class AbletonMCP(ControlSurface):
             return {
                 "success": True,
                 "time": existing.time,
+                "requested_time": target_time,
+                "snapped": abs(existing.time - target_time) > exact_tolerance,
+                "created": created,
                 "name": existing.name,
             }
         except Exception as e:
             self.log_message("Error creating locator: " + str(e))
             raise
+
+    def _save_set(self, path=None):
+        """Save the current Live Set.
+
+        Live's Python API does not expose a documented save entry point on
+        every version, so probe the known candidates instead of assuming one
+        exists, and return a typed refusal when none is available rather than
+        reporting a success that never happened.
+        """
+        try:
+            song = self._song
+            app = self.application()
+            document = None
+            if app is not None and hasattr(app, "get_document"):
+                try:
+                    document = app.get_document()
+                except Exception:
+                    document = None
+
+            candidates = []
+            for owner, attr in ((song, "save_set"), (document, "save_set"), (app, "save_set")):
+                if owner is not None and hasattr(owner, attr):
+                    candidates.append((owner, attr))
+
+            if not candidates:
+                return {
+                    "success": False,
+                    "error": "save_unsupported",
+                    "message": ("This Live version exposes no save API to Remote "
+                                "Scripts; save the Set from Live (Ctrl+S) and re-run "
+                                "verification."),
+                    "requested_path": path,
+                }
+
+            owner, attr = candidates[0]
+            getattr(owner, attr)()
+            result = {"success": True, "method": attr, "requested_path": path}
+            try:
+                result["set_name"] = str(self._safe_attr(song, "name", str, ""))
+            except Exception:
+                pass
+            if path:
+                result["note"] = ("Live saved the Set in place; this API cannot "
+                                  "save-as to a new path.")
+            return result
+        except Exception as e:
+            self.log_message("Error saving set: " + str(e))
+            raise
+
+    def _get_browser_categories(self, category_type="all"):
+        """Top-level browser categories (handler for get_browser_categories)."""
+        tree = self.get_browser_tree(category_type)
+        return {
+            "type": category_type,
+            "categories": tree.get("categories", []),
+            "available_categories": tree.get("available_categories", []),
+        }
+
+    def _get_browser_items(self, path, item_type="all"):
+        """Browser items at a path, optionally filtered (get_browser_items)."""
+        result = self.get_browser_items_at_path(path)
+        items = result.get("items", [])
+        wanted = (item_type or "all").lower()
+        if wanted not in ("all", ""):
+            def keep(item):
+                if wanted in ("folder", "folders"):
+                    return bool(item.get("is_folder"))
+                if wanted in ("device", "devices"):
+                    return bool(item.get("is_device"))
+                if wanted in ("loadable", "loadables"):
+                    return bool(item.get("is_loadable"))
+                return True
+            items = [i for i in items if keep(i)]
+        out = dict(result)
+        out["items"] = items
+        out["item_type"] = wanted or "all"
+        return out
 
     # ── Browser implementations ───────────────────────────────────────────────
 

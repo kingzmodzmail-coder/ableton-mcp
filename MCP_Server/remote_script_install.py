@@ -15,12 +15,13 @@ import os
 import re
 import shutil
 import sys
+import uuid
 from pathlib import Path
 
 logger = logging.getLogger("ableton-mcp-remote-script")
 
 # Must match SCRIPT_VERSION in AbletonMCP_Remote_Script/__init__.py
-EXPECTED_REMOTE_SCRIPT_VERSION = "1.7.0"
+EXPECTED_REMOTE_SCRIPT_VERSION = "1.7.1"
 REMOTE_SCRIPT_FOLDER_NAME = "AbletonMCP"
 
 
@@ -220,8 +221,13 @@ def install_remote_script(
             elif dest.read_bytes() == src_bytes:
                 status = "unchanged"
             else:
+                existing = dest.read_text(encoding='utf-8')
+                # --force bypasses the skip environment flag, not protocol
+                # compatibility. The other Ableton bridge is a separate fork.
+                if re.search(r'^BRIDGE_VERSION\s*=', existing, re.MULTILINE):
+                    raise ValueError('Different bridge implementation detected (BRIDGE_VERSION). Refusing replacement; inspect capabilities and choose a separate installation path.')
                 # Existing file differs — may be a user's own edit, so back it up
-                backup = dest.with_suffix(".py.bak")
+                backup = dest.with_name('__init__.py.' + uuid.uuid4().hex + '.bak')
                 shutil.copy2(dest, backup)
                 shutil.copy2(src, dest)
                 status = "updated"
