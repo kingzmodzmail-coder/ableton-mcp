@@ -12,7 +12,6 @@ logger = logging.getLogger("AbletonMCPServer")
 
 _lock = threading.Lock()
 _script_info: dict[str, Any] | None = None
-_handshake_done = False
 
 # Commands present on Remote Scripts before get_script_info existed
 _LEGACY_CAPABILITIES = frozenset({
@@ -58,7 +57,7 @@ def script_version_ok() -> bool:
 
 def handshake(send_command) -> dict[str, Any]:
     """Query Live for script info. On old scripts, get_script_info is unknown."""
-    global _script_info, _handshake_done
+    global _script_info
     info: dict[str, Any] = {
         "script_version": None,
         "capabilities": [],
@@ -95,7 +94,6 @@ def handshake(send_command) -> dict[str, Any]:
 
     with _lock:
         _script_info = info
-        _handshake_done = True
 
     if info.get("up_to_date"):
         logger.info(

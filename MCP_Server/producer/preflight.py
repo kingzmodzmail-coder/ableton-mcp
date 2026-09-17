@@ -5,7 +5,10 @@ speaks the expected script version, exactly one Live instance is running, the
 snapshot contract is the full v2 one the producer needs, and the disk has room
 for renders. Read-only: nothing here writes to Live or to disk.
 """
+import csv
+import io
 import json
+import re
 import shutil
 import socket
 import subprocess
@@ -14,7 +17,14 @@ from pathlib import Path
 
 DEFAULT_HOST, DEFAULT_PORT = "127.0.0.1", 9877
 DEFAULT_MIN_FREE_GB = 20.0
-LIVE_PROCESS_NAMES = ("Ableton Live", "Live")
+# Live's Windows executable carries its major version and edition, e.g.
+# "Ableton Live 12 Suite.exe" or "Ableton Live 11 Standard.exe". Match that
+# shape rather than a bare prefix: "Ableton Index.exe" and "AbletonAudioCpl.exe"
+# ship alongside it and are not the DAW.
+LIVE_PROCESS_RE = re.compile(r"^ableton live \d+[a-z0-9 ]*\.exe$")
+# Anything matching the pattern but carrying one of these is a helper Live
+# started, not a second instance of the DAW.
+LIVE_HELPER_MARKERS = ("helper", "crash", "index", "installer", "updater")
 SOCKET_TIMEOUT = 5.0
 
 
@@ -42,16 +52,32 @@ def ask_bridge(command, host=DEFAULT_HOST, port=DEFAULT_PORT, timeout=SOCKET_TIM
 
 
 def live_process_count():
-    """Number of running Live processes, or None where we cannot tell."""
+    """Number of running Live processes, or None where we cannot tell.
+
+    Parses CSV rather than the default table: the image name contains spaces
+    ("Ableton Live 12 Suite.exe"), so column-splitting the table format cannot
+    recover it. Substring counting cannot work either — "Ableton Live.exe"
+    contains "Live.exe", which would count one process twice.
+    """
     if not sys.platform.startswith("win"):
         return None
     try:
-        output = subprocess.run(["tasklist"], capture_output=True, text=True,
+        output = subprocess.run(["tasklist", "/fo", "csv", "/nh"],
+                                capture_output=True, text=True,
                                 timeout=20, check=True).stdout
     except Exception:
         return None
-    lowered = output.lower()
-    return sum(lowered.count(name.lower() + ".exe") for name in LIVE_PROCESS_NAMES)
+    count = 0
+    for row in csv.reader(io.StringIO(output)):
+        if not row:
+            continue
+        image = row[0].strip().lower()
+        if not LIVE_PROCESS_RE.match(image):
+            continue
+        if any(marker in image for marker in LIVE_HELPER_MARKERS):
+            continue
+        count += 1
+    return count
 
 
 def run(project=".producer", host=DEFAULT_HOST, port=DEFAULT_PORT,

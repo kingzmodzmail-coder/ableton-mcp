@@ -60,7 +60,6 @@ def test_response_limit_disconnects(monkeypatch):
 
 def test_alternative_bridge_is_identified_without_reinstall_advice(monkeypatch, caplog):
     monkeypatch.setattr(script_handshake, '_script_info', None)
-    monkeypatch.setattr(script_handshake, '_handshake_done', False)
     calls = []
 
     def send(command):

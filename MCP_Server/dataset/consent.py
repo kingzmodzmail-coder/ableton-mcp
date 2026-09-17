@@ -45,34 +45,33 @@ _STATE_DIR = Path(
 _STATE_FILE = _STATE_DIR / "consent.json"
 
 _lock = threading.Lock()
-_cache: dict[str, Any] | None = None
 _persist_failed = False
 
 
 def _read_state() -> dict[str, Any]:
-    """Load persisted consent, tolerating a missing or corrupt file."""
-    global _cache
-    # Other MCP processes can revoke consent. Never trust a process-lifetime
-    # cached grant when deciding whether queued data may leave the machine.
+    """Load persisted consent, tolerating a missing or corrupt file.
+
+    Deliberately re-reads the file every time and keeps no cache: other MCP
+    processes can revoke consent, and a process-lifetime cached grant must
+    never decide whether queued data may leave the machine.
+    """
     try:
         with open(_STATE_FILE, encoding="utf-8") as f:
             data = json.load(f)
         if not isinstance(data, dict):
             raise ValueError("consent state is not an object")
-        _cache = data
+        return data
     except FileNotFoundError:
-        _cache = {}
+        return {}
     except Exception as e:
         # A damaged file must not wedge the server into a state where it can
         # neither record nor re-ask. Treat it as never-asked.
         logger.debug("Consent state unreadable (%s); treating as unasked", e)
-        _cache = {}
-    return _cache
+        return {}
 
 
 def _write_state(state: dict[str, Any]) -> None:
-    global _cache, _persist_failed
-    _cache = state
+    global _persist_failed
     try:
         _STATE_DIR.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=_STATE_DIR, delete=False) as f:
@@ -243,6 +242,6 @@ def maybe_consent_notice() -> str:
 
 
 def reset_for_tests() -> None:
-    global _cache
+    global _persist_failed
     with _lock:
-        _cache = None
+        _persist_failed = False

@@ -7,7 +7,6 @@ from MCP_Server.dataset import consent
 def isolated_consent(monkeypatch, tmp_path):
     monkeypatch.setattr(consent, "_STATE_DIR", tmp_path)
     monkeypatch.setattr(consent, "_STATE_FILE", tmp_path / "consent.json")
-    monkeypatch.setattr(consent, "_cache", None)
     monkeypatch.setattr(consent, "_persist_failed", False)
     for name in ("ABLETON_MCP_ENABLE_DATASET", "ABLETON_MCP_DISABLE_DATASET"):
         monkeypatch.delenv(name, raising=False)

@@ -34,6 +34,9 @@ Desktop.ini
 
 # Testing / Coverage
 .pytest_cache/
+.ruff_cache/
+# pytest --basetemp target, used when the system temp dir is not writable
+_pytest_tmp/
 .coverage
 htmlcov/
 .tox/

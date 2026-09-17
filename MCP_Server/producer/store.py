@@ -13,6 +13,10 @@ class Store:
         with self.connect() as db:
             db.execute('CREATE TABLE IF NOT EXISTS records (id TEXT PRIMARY KEY, kind TEXT, created TEXT, body TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, body TEXT)')
+            # Both hot paths filter on kind: unresolved_run() on every apply and
+            # undo, list() on every context read. Without this they scan every
+            # row, including the version snapshots, which are by far the largest.
+            db.execute('CREATE INDEX IF NOT EXISTS records_kind_created ON records (kind, created)')
 
     @contextmanager
     def connect(self):

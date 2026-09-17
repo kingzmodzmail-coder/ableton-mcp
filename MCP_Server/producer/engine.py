@@ -238,14 +238,22 @@ class Producer:
             plan['status'] = 'attempted'
             self.store.update(plan_id, plan)
             try:
+                # One full snapshot per step instead of two. `before` was read
+                # a moment ago and already digest-matched the plan, so step 0
+                # reuses it; afterwards the post-execute read that verifies
+                # step N is also the pre-check for step N+1. Only a local
+                # SQLite write separates them, so re-reading Live in between
+                # bought no freshness the next per-step check does not give.
+                current = before
                 for step in plan['actions']:
-                    if digest(self.target(self.snapshot(), step['action'])) != digest(step['before']):
+                    if digest(self.target(current, step['action'])) != digest(step['before']):
                         raise ValueError('Target changed during execution; remaining edits stopped')
                     entry = dict(step, status='attempting')
                     run['steps'].append(entry)
                     self.store.update(run_id, run)  # durable before the first write
                     self.execute(step['action'])
-                    entry['after'] = self.verify(self.snapshot(), step['action'])
+                    current = self.snapshot()
+                    entry['after'] = self.verify(current, step['action'])
                     entry['status'] = 'verified'
                     self.store.update(run_id, run)
                 run['status'] = 'applied'

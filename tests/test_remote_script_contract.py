@@ -17,6 +17,7 @@ a socket). No Ableton, no network.
 
 import ast
 import importlib.util
+import json
 import sys
 import types
 from pathlib import Path
@@ -150,6 +151,149 @@ def test_script_version_matches_installer_expectation(script_module):
 def test_new_commands_are_advertised_as_capabilities(script_module):
     for command in ("get_browser_categories", "get_browser_items", "save_set"):
         assert command in script_module.SCRIPT_CAPABILITIES
+
+
+# --------------------------------------------------------------- framing
+
+class FakeClient(object):
+    """Hands out prepared chunks, then EOF. Records what was written back."""
+
+    def __init__(self, chunks):
+        self._chunks = list(chunks)
+        self.sent = []
+        self.closed = False
+
+    def settimeout(self, _timeout):
+        pass
+
+    def recv(self, _size):
+        return self._chunks.pop(0) if self._chunks else b""
+
+    def sendall(self, data):
+        self.sent.append(data)
+
+    def close(self):
+        self.closed = True
+
+
+def _serve(script_module, chunks):
+    """Run one client session and decode whatever it wrote back."""
+    inst = make_instance(script_module)
+    inst.running = True
+    received = []
+
+    def _process(command):
+        received.append(command)
+        return {"status": "success", "result": {"echo": command.get("type")}}
+
+    inst._process_command = _process
+    client = FakeClient(chunks)
+    inst._handle_client(client)
+    replies = [json.loads(frame.decode("utf-8")) for frame in client.sent]
+    return received, replies
+
+
+def test_command_split_mid_utf8_character_still_parses(script_module):
+    """Regression: each recv() chunk was decoded on its own, so a multi-byte
+    character straddling a chunk boundary raised, dropped the chunk, and wrote
+    an error frame into a stream still awaiting the real response.
+
+    ensure_ascii=False because that is what puts raw multi-byte on the wire.
+    This package's own server escapes non-ASCII, but the bridge is a public
+    TCP surface and other clients do not — test_bridge_transport pins the same
+    property for the response direction.
+    """
+    payload = json.dumps(
+        {"type": "set_clip_name", "params": {"name": "café été"}},
+        ensure_ascii=False,
+    ).encode("utf-8")
+    split = payload.index(b"\xc3") + 1  # between the two bytes of 'é'
+    assert payload[:split].endswith(b"\xc3")
+
+    received, replies = _serve(script_module, [payload[:split], payload[split:]])
+
+    assert len(received) == 1
+    assert received[0]["params"]["name"] == "café été"
+    assert replies == [{"status": "success", "result": {"echo": "set_clip_name"}}]
+
+
+def test_command_split_across_many_chunks_parses_once(script_module):
+    payload = json.dumps({"type": "get_session_info", "params": {}}).encode("utf-8")
+    chunks = [payload[i:i + 3] for i in range(0, len(payload), 3)]
+
+    received, replies = _serve(script_module, chunks)
+
+    assert len(received) == 1
+    assert len(replies) == 1
+
+
+def test_back_to_back_commands_each_get_one_reply(script_module):
+    first = json.dumps({"type": "start_playback", "params": {}}).encode("utf-8")
+    second = json.dumps({"type": "stop_playback", "params": {}}).encode("utf-8")
+
+    received, replies = _serve(script_module, [first, second])
+
+    assert [c["type"] for c in received] == ["start_playback", "stop_playback"]
+    assert len(replies) == 2
+
+
+def test_oversized_request_is_refused_instead_of_buffered_forever(
+        script_module, monkeypatch):
+    """A client that never completes a command must not grow the buffer."""
+    monkeypatch.setattr(script_module, "MAX_REQUEST_BYTES", 1024)
+    junk = b'{"type": "' + b"x" * 4096
+
+    received, replies = _serve(script_module, [junk, junk])
+
+    assert received == []
+    assert len(replies) == 1
+    assert replies[0]["status"] == "error"
+
+
+# ------------------------------------------------------------- browser tree
+
+class FakeBrowserItem(object):
+    def __init__(self, name, children=(), loadable=False, uri=None):
+        self.name = name
+        self.children = list(children)
+        self.is_device = False
+        self.is_loadable = loadable
+        self.uri = uri
+
+
+class FakeBrowser(object):
+    def __init__(self, instruments):
+        self.instruments = instruments
+
+
+# FakeApplication is the one defined further down, under save_set.
+
+def test_browser_tree_returns_children_and_a_truthful_folder_count(script_module):
+    """Regression: process_item never recursed (children was always []) and
+    total_folders was never returned, so the server's header always read
+    'showing 0 folders'."""
+    kits = FakeBrowserItem("Kits", [FakeBrowserItem("808 Core Kit", loadable=True)])
+    browser = FakeBrowser(FakeBrowserItem("Instruments", [kits]))
+    inst = make_instance(script_module, application=FakeApplication(browser=browser))
+
+    tree = inst.get_browser_tree("instruments")
+
+    assert tree["total_folders"] >= 2  # Instruments and Kits both have children
+    category = tree["categories"][0]
+    assert [child["name"] for child in category["children"]] == ["Kits"]
+    # Depth is capped at one level below the category, so Kits reports more.
+    assert category["children"][0]["has_more"] is True
+
+
+def test_browser_tree_caps_a_huge_folder_and_flags_it(script_module):
+    many = [FakeBrowserItem("Preset %d" % i, loadable=True) for i in range(200)]
+    browser = FakeBrowser(FakeBrowserItem("Instruments", many))
+    inst = make_instance(script_module, application=FakeApplication(browser=browser))
+
+    category = inst.get_browser_tree("instruments")["categories"][0]
+
+    assert len(category["children"]) == 64
+    assert category["has_more"] is True
 
 
 # ------------------------------------------------------------------- notes
