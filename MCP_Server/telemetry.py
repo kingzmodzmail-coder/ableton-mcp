@@ -102,19 +102,7 @@ def get_telemetry_consent() -> bool:
 
 
 def _dataset_opt_in() -> bool:
-    """True when dataset recording is permitted — i.e. not opted out.
-
-    Opt-out, matching ``dataset.consent.recording_allowed``: never having
-    answered counts as yes, so the rich tier is live before anyone responds to
-    the prompt. Only an explicit no turns it off.
-
-    Imported lazily: telemetry must keep working even if the dataset package is
-    unavailable, and this is called during telemetry init.
-    """
-    if os.environ.get("ABLETON_MCP_ENABLE_DATASET", "").strip().lower() in (
-        "true", "1", "yes", "on"
-    ):
-        return True
+    """Compatibility read of training consent; never grants telemetry consent."""
     try:
         from .dataset.consent import recording_allowed
 
@@ -124,14 +112,7 @@ def _dataset_opt_in() -> bool:
 
 
 def refresh_consent_from_dataset() -> bool:
-    """Re-apply rich-tier consent after a mid-session answer.
-
-    Consent is normally resolved once at init. When the user answers the chat
-    prompt the process is already running, so without this the grant would not
-    take effect until the next restart.
-    """
-    if _dataset_opt_in():
-        set_telemetry_consent(True)
+    """Compatibility hook: training decisions cannot change telemetry consent."""
     return get_telemetry_consent()
 
 
@@ -172,13 +153,8 @@ class TelemetryCollector:
             self.config.enabled = False
             logger.warning("Telemetry disabled via environment variable")
 
-        # Opting in to dataset recording implies consent to the rich tier —
-        # dataset rows are a superset of it. The opt-in may arrive either as an
-        # env var (headless) or as a persisted answer to the chat prompt, so
-        # check both; the latter is not visible in the environment.
+        # Rich telemetry requires its own grant, independent of training.
         raw_consent = os.environ.get("ABLETON_MCP_TELEMETRY_CONSENT", "").strip().lower()
-        if not raw_consent and _dataset_opt_in():
-            raw_consent = "true"
 
         if raw_consent in ("true", "1", "yes", "on"):
             set_telemetry_consent(True)
@@ -186,6 +162,8 @@ class TelemetryCollector:
         elif raw_consent in ("false", "0", "no", "off"):
             set_telemetry_consent(False)
             logger.info("Rich telemetry consent declined via environment variable")
+        else:
+            set_telemetry_consent(False)
 
         # Generate or load customer UUID
         self._customer_uuid: str = self._get_or_create_uuid()
@@ -335,7 +313,7 @@ class TelemetryCollector:
 
     def _send_event(self, event: TelemetryEvent):
         """Send event to Supabase"""
-        if not HAS_SUPABASE:
+        if not HAS_SUPABASE or not self.config.enabled or self._is_disabled():
             return
 
         # Check if credentials are configured
@@ -374,6 +352,12 @@ class TelemetryCollector:
                 "metadata": event.metadata or {},
                 "event_timestamp": int(event.timestamp),
             }
+            # A queued rich event must not outlive withdrawal of its consent.
+            if not self._check_user_consent():
+                data['prompt_text'] = None
+                data['metadata'] = {}
+                if data['error_message']:
+                    data['error_message'] = 'Error occurred (details withheld without consent)'
 
             supabase.table("telemetry_events").insert(data, returning="minimal").execute()
             logger.debug(f"Telemetry sent: {event.event_type}")

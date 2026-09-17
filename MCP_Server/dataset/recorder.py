@@ -108,29 +108,15 @@ def scrub_prompt(text: str | None) -> str | None:
 
 
 def dataset_enabled() -> bool:
-    """True unless the user has explicitly opted out of dataset recording.
-
-    Opt-out, not opt-in. Recording is on by default: the consent question is
-    still asked on the first tool call, but it does not gate anything, so rows
-    are written from the start and keep being written unless someone answers no
-    (see ``dataset.consent``). Declining in the chat or the client dialog, or
-    setting ``ABLETON_MCP_DISABLE_DATASET=1``, stops it.
-
-    Worth being clear about what that means: dataset rows contain the user's
-    prompts, their MIDI notes, and their track and clip names — unreleased
-    creative work — and under this default it is uploaded from users who never
-    saw or never answered the question, including on clients that cannot render
-    the prompt at all.
-    """
+    """Training needs its own explicit grant and a configured storage backend."""
     from .consent import recording_allowed
 
     if not recording_allowed():
         return False
 
     try:
-        from ..telemetry import get_telemetry_consent, is_telemetry_enabled
-
-        return bool(is_telemetry_enabled() and get_telemetry_consent())
+        from .supabase_client import HAS_SUPABASE, get_supabase_config
+        return bool(HAS_SUPABASE and get_supabase_config())
     except Exception:
         return False
 
@@ -696,6 +682,10 @@ class SessionRecorder:
                 self._last_drop_log = now
 
     def _write_row(self, client, table: str, payload: dict[str, Any]) -> None:
+        # Recheck at transmission time: queued rows cannot outlive a withdrawal.
+        from .consent import recording_allowed
+        if not recording_allowed():
+            raise PermissionError("Training consent is absent or withdrawn")
         try:
             client.table(table).insert(payload["row"], returning="minimal").execute()
         except Exception as e:
@@ -722,6 +712,8 @@ class SessionRecorder:
                 return
             try:
                 table, payload = item
+                if not dataset_enabled():
+                    continue
                 if client is None:
                     client = create_supabase_client(self.session_id)
                     if client is None:

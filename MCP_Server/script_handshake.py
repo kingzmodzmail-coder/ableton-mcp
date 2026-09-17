@@ -77,17 +77,19 @@ def handshake(send_command) -> dict[str, Any]:
     except Exception as e:
         msg = str(e)
         info["error"] = msg
-        # Old Remote Scripts don't know get_script_info
+        # A different bridge implementation may lack this command too.
         if "Unknown command" in msg or "unknown command" in msg.lower():
             info["script_version"] = "legacy"
             info["capabilities"] = []
             info["up_to_date"] = False
-            logger.warning(
-                "Ableton Remote Script is outdated (no get_script_info). "
-                "Expected %s. Run `ableton-mcp-install-script`, then restart "
-                "Live.",
-                EXPECTED_REMOTE_SCRIPT_VERSION,
-            )
+            try:
+                session = send_command('get_session_info')
+                if isinstance(session, dict) and session.get('bridge_version'):
+                    info['bridge_version'] = session['bridge_version']
+                    info['implementation'] = 'alternative_bridge'
+            except Exception:
+                pass
+            logger.warning('Bridge lacks get_script_info; inspect implementation and snapshot capabilities before replacing scripts.')
         else:
             logger.warning("Remote Script handshake failed: %s", e)
 
@@ -103,8 +105,7 @@ def handshake(send_command) -> dict[str, Any]:
         )
     elif info.get("script_version") and info.get("script_version") != "legacy":
         logger.warning(
-            "Remote Script v%s loaded, package expects v%s — run "
-            "`ableton-mcp-install-script`, then restart Ableton.",
+            "Remote Script v%s loaded, package expects v%s — inspect capabilities and the loaded path before replacing scripts.",
             info.get("script_version"),
             EXPECTED_REMOTE_SCRIPT_VERSION,
         )
@@ -121,6 +122,5 @@ def require_capability(name: str) -> str | None:
         f"Ableton Remote Script missing capability '{name}' "
         f"(loaded={info.get('script_version')!r}, "
         f"expected={EXPECTED_REMOTE_SCRIPT_VERSION}). "
-        f"Run `ableton-mcp-install-script` to update the User Remote Script, "
-        f"then restart Ableton Live."
+        f"Inspect the active bridge implementation, capabilities and loaded path before replacing scripts."
     )

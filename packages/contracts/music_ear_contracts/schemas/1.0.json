@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:music-ear:contracts:1.0",
+  "title": "AI Music Ear contracts 1.0",
+  "$defs": {
+    "Id": {"type": "string", "pattern": "^[a-z][a-z0-9]*_[A-Za-z0-9_-]{1,120}$"},
+    "Sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "Revision": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[0-9]+\\.[0-9]+\\.[0-9]+\\+sha256:[a-f0-9]{64}$"},
+    "Task": {"enum": ["tempo", "beat", "downbeat", "key", "chord", "structure", "pitch", "tags", "mood", "embedding", "stems"]},
+    "JobState": {"enum": ["pending", "validating", "normalizing", "analyzing", "fusing", "summarizing", "succeeded", "partial_success", "failed", "cancelled"]},
+    "ChordLabel": {"enum": ["N", "X", "C:maj", "C#:maj", "D:maj", "D#:maj", "E:maj", "F:maj", "F#:maj", "G:maj", "G#:maj", "A:maj", "A#:maj", "B:maj", "C:min", "C#:min", "D:min", "D#:min", "E:min", "F:min", "F#:min", "G:min", "G#:min", "A:min", "A#:min", "B:min"]},
+    "KeyLabel": {"type": "string", "pattern": "^(unknown|(C|C#|D|D#|E|F|F#|G|G#|A|A#|B):(maj|min))$"},
+    "ArtifactRef": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact_id", "sha256", "media_type", "byte_length"],
+      "properties": {
+        "artifact_id": {"$ref": "#/$defs/Id"}, "sha256": {"$ref": "#/$defs/Sha256"},
+        "media_type": {"type": "string", "minLength": 1}, "byte_length": {"type": "integer", "minimum": 0}
+      }
+    },
+    "Warning": {
+      "type": "object", "additionalProperties": false, "required": ["code", "severity", "message"],
+      "properties": {
+        "code": {"type": "string", "pattern": "^[a-z][a-z0-9_]+$"},
+        "severity": {"enum": ["info", "warning", "error"]},
+        "message": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "observation_ids": {"type": "array", "items": {"$ref": "#/$defs/Id"}, "uniqueItems": true}
+      }
+    },
+    "Calibration": {
+      "type": "object", "additionalProperties": false, "required": ["status"],
+      "properties": {
+        "status": {"enum": ["calibrated", "uncalibrated", "unavailable"]},
+        "artifact_revision": {"$ref": "#/$defs/Revision"}
+      },
+      "if": {"properties": {"status": {"const": "calibrated"}}},
+      "then": {"required": ["artifact_revision"]},
+      "else": {"not": {"required": ["artifact_revision"]}}
+    },
+    "Score": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "calibration"],
+      "properties": {
+        "kind": {"enum": ["calibrated_probability", "uncalibrated_probability", "logit", "cosine_similarity", "heuristic", "unknown"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "raw_score": {"type": "number"}, "calibration": {"$ref": "#/$defs/Calibration"}
+      },
+      "oneOf": [
+        {"properties": {"kind": {"const": "calibrated_probability"}, "calibration": {"properties": {"status": {"const": "calibrated"}}}}, "required": ["confidence"], "not": {"required": ["raw_score"]}},
+        {"properties": {"kind": {"const": "uncalibrated_probability"}, "calibration": {"properties": {"status": {"const": "uncalibrated"}}}}, "required": ["confidence"], "not": {"required": ["raw_score"]}},
+        {"properties": {"kind": {"const": "cosine_similarity"}, "raw_score": {"minimum": -1, "maximum": 1}, "calibration": {"properties": {"status": {"const": "uncalibrated"}}}}, "required": ["raw_score"], "not": {"required": ["confidence"]}},
+        {"properties": {"kind": {"enum": ["logit", "heuristic"]}, "calibration": {"properties": {"status": {"const": "uncalibrated"}}}}, "required": ["raw_score"], "not": {"required": ["confidence"]}},
+        {"properties": {"kind": {"const": "unknown"}, "calibration": {"properties": {"status": {"const": "unavailable"}}}}, "not": {"anyOf": [{"required": ["confidence"]}, {"required": ["raw_score"]}]}}
+      ]
+    },
+    "PointTime": {
+      "type": "object", "additionalProperties": false, "required": ["time_s"],
+      "properties": {"time_s": {"type": "number", "minimum": 0}}
+    },
+    "IntervalTime": {
+      "type": "object", "additionalProperties": false, "required": ["start_s", "end_s"],
+      "properties": {"start_s": {"type": "number", "minimum": 0}, "end_s": {"type": "number", "exclusiveMinimum": 0}}
+    },
+    "GlobalTime": {
+      "type": "object", "additionalProperties": false, "required": ["scope"],
+      "properties": {"scope": {"const": "track"}}
+    },
+    "Location": {"oneOf": [{"$ref": "#/$defs/PointTime"}, {"$ref": "#/$defs/IntervalTime"}, {"$ref": "#/$defs/GlobalTime"}]},
+    "ProducerRevision": {
+      "type": "object", "additionalProperties": false, "required": ["model_revision", "representation_id", "label_set"],
+      "properties": {"model_revision": {"$ref": "#/$defs/Revision"}, "representation_id": {"$ref": "#/$defs/Revision"}, "label_set": {"$ref": "#/$defs/Revision"}}
+    },
+    "Alternative": {
+      "type": "object", "additionalProperties": false, "required": ["label", "score"],
+      "properties": {"label": {"type": ["string", "null"], "maxLength": 200}, "score": {"$ref": "#/$defs/Score"}}
+    },
+    "Observation": {
+      "type": "object", "additionalProperties": false, "required": ["observation_id", "location", "label", "score", "alternatives"],
+      "properties": {
+        "observation_id": {"$ref": "#/$defs/Id"}, "location": {"$ref": "#/$defs/Location"},
+        "label": {"type": ["string", "null"], "maxLength": 200}, "value": {"type": "number"},
+        "unit": {"enum": ["bpm", "hz", "midi_note", "seconds"]}, "score": {"$ref": "#/$defs/Score"},
+        "alternatives": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/Alternative"}},
+        "beat_in_bar": {"type": "integer", "minimum": 1}, "beats_per_bar": {"type": "integer", "minimum": 1, "maximum": 32}
+      },
+      "dependentRequired": {"value": ["unit"], "unit": ["value"], "beat_in_bar": ["beats_per_bar"]}
+    },
+    "TaskOutcome": {
+      "type": "object", "additionalProperties": false, "required": ["task", "required", "status", "observation_set_ids", "warnings"],
+      "properties": {
+        "task": {"$ref": "#/$defs/Task"}, "required": {"type": "boolean"}, "status": {"enum": ["succeeded", "failed", "skipped", "cancelled"]},
+        "observation_set_ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/Id"}},
+        "warnings": {"type": "array", "items": {"$ref": "#/$defs/Warning"}}, "error": {"$ref": "#/$defs/ProblemDetails"}
+      },
+      "if": {"properties": {"status": {"const": "failed"}}}, "then": {"required": ["error"]},
+      "else": {"not": {"required": ["error"]}}
+    },
+    "OriginalMedia": {
+      "type": "object", "additionalProperties": false, "required": ["sha256", "container", "codec", "sample_rate_hz", "channels", "sample_count"],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/Sha256"}, "container": {"type": "string", "minLength": 1}, "codec": {"type": "string", "minLength": 1},
+        "sample_rate_hz": {"type": "integer", "minimum": 1}, "channels": {"type": "integer", "minimum": 1}, "sample_count": {"type": "integer", "minimum": 1}
+      }
+    },
+    "AudioStatistics": {
+      "type": "object", "additionalProperties": false, "required": ["sample_peak", "rms", "overrange_sample_count", "integrated_lufs", "loudness_status"],
+      "properties": {
+        "sample_peak": {"type": "number", "minimum": 0}, "rms": {"type": "number", "minimum": 0},
+        "overrange_sample_count": {"type": "integer", "minimum": 0}, "integrated_lufs": {"type": ["number", "null"]},
+        "loudness_status": {"enum": ["measured", "unavailable"]}, "loudness_revision": {"$ref": "#/$defs/Revision"}
+      },
+      "if": {"properties": {"loudness_status": {"const": "measured"}}},
+      "then": {"required": ["loudness_revision"], "properties": {"integrated_lufs": {"type": "number"}}},
+      "else": {"properties": {"integrated_lufs": {"type": "null"}}, "not": {"required": ["loudness_revision"]}}
+    },
+    "CanonicalAudioArtifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "track_id", "pcm", "original", "sample_format", "sample_rate_hz", "channels", "channel_order", "sample_count", "duration_s", "origin_sample", "preprocessing_revision", "decoder_revision", "execution_environment_sha256", "resampler_revision", "delay_compensation_samples", "amplitude_policy", "mono_policy", "statistics", "warnings"],
+      "properties": {
+        "schema_version": {"const": "canonical-audio/1.0"}, "track_id": {"$ref": "#/$defs/Id"}, "pcm": {"$ref": "#/$defs/ArtifactRef"}, "original": {"$ref": "#/$defs/OriginalMedia"},
+        "sample_format": {"const": "f32le"}, "sample_rate_hz": {"const": 48000}, "channels": {"enum": [1, 2]},
+        "channel_order": {"enum": [["M"], ["L", "R"]]}, "sample_count": {"type": "integer", "minimum": 1}, "duration_s": {"type": "number", "exclusiveMinimum": 0}, "origin_sample": {"const": 0},
+        "preprocessing_revision": {"$ref": "#/$defs/Revision"}, "decoder_revision": {"$ref": "#/$defs/Revision"}, "execution_environment_sha256": {"$ref": "#/$defs/Sha256"},
+        "resampler_revision": {"oneOf": [{"$ref": "#/$defs/Revision"}, {"type": "null"}]},
+        "delay_compensation_samples": {"type": "integer"}, "amplitude_policy": {"const": "preserve_finite_float_no_gain_no_clip"}, "mono_policy": {"const": "identity_or_half_l_plus_half_r"},
+        "statistics": {"$ref": "#/$defs/AudioStatistics"}, "warnings": {"type": "array", "items": {"$ref": "#/$defs/Warning"}}
+      }
+    },
+    "AudioSliceRef": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "track_id", "pcm_sha256", "sample_rate_hz", "master_sample_count", "start_sample", "end_sample", "core_start_sample", "core_end_sample"],
+      "properties": {
+        "schema_version": {"const": "audio-slice/1.0"}, "track_id": {"$ref": "#/$defs/Id"}, "pcm_sha256": {"$ref": "#/$defs/Sha256"}, "sample_rate_hz": {"const": 48000},
+        "master_sample_count": {"type": "integer", "minimum": 1}, "start_sample": {"type": "integer", "minimum": 0}, "end_sample": {"type": "integer", "minimum": 1},
+        "core_start_sample": {"type": "integer", "minimum": 0}, "core_end_sample": {"type": "integer", "minimum": 1}
+      }
+    },
+    "Timebase": {
+      "type": "object", "additionalProperties": false, "required": ["sample_rate_hz", "origin_sample", "master_sample_count"],
+      "properties": {"sample_rate_hz": {"const": 48000}, "origin_sample": {"const": 0}, "master_sample_count": {"type": "integer", "minimum": 1}}
+    },
+    "ObservationSet": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "observation_set_id", "track_id", "run_id", "input_pcm_sha256", "task", "producer", "timebase", "observations", "warnings"],
+      "properties": {
+        "schema_version": {"const": "observation-set/1.0"}, "observation_set_id": {"$ref": "#/$defs/Id"}, "track_id": {"$ref": "#/$defs/Id"}, "run_id": {"$ref": "#/$defs/Id"},
+        "input_pcm_sha256": {"$ref": "#/$defs/Sha256"}, "task": {"$ref": "#/$defs/Task"}, "producer": {"$ref": "#/$defs/ProducerRevision"}, "timebase": {"$ref": "#/$defs/Timebase"},
+        "observations": {"type": "array", "maxItems": 100000, "items": {"$ref": "#/$defs/Observation"}}, "warnings": {"type": "array", "items": {"$ref": "#/$defs/Warning"}}
+      }
+    },
+    "EvidenceRef": {
+      "type": "object", "additionalProperties": false, "required": ["observation_set_id", "observation_id"],
+      "properties": {"observation_set_id": {"$ref": "#/$defs/Id"}, "observation_id": {"$ref": "#/$defs/Id"}}
+    },
+    "AnalysisFact": {
+      "type": "object", "additionalProperties": false, "required": ["fact_id", "task", "location", "label", "score", "evidence", "alternatives"],
+      "properties": {
+        "fact_id": {"$ref": "#/$defs/Id"}, "task": {"$ref": "#/$defs/Task"}, "location": {"$ref": "#/$defs/Location"}, "label": {"type": ["string", "null"], "maxLength": 200},
+        "value": {"type": "number"}, "unit": {"enum": ["bpm", "hz", "midi_note", "seconds"]}, "score": {"$ref": "#/$defs/Score"},
+        "evidence": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/EvidenceRef"}},
+        "alternatives": {"type": "array", "items": {"$ref": "#/$defs/Alternative"}}, "conflict_reason": {"type": "string", "minLength": 1}
+      }, "dependentRequired": {"value": ["unit"], "unit": ["value"]}
+    },
+    "EmbeddingRef": {
+      "type": "object", "additionalProperties": false, "required": ["artifact", "model_revision", "dimensions", "normalization", "location"],
+      "properties": {"artifact": {"$ref": "#/$defs/ArtifactRef"}, "model_revision": {"$ref": "#/$defs/Revision"}, "dimensions": {"type": "integer", "minimum": 1, "maximum": 65536}, "normalization": {"const": "l2"}, "location": {"$ref": "#/$defs/Location"}}
+    },
+    "ObservationSetRef": {
+      "type": "object", "additionalProperties": false, "required": ["observation_set_id", "task", "artifact", "producer"],
+      "properties": {"observation_set_id": {"$ref": "#/$defs/Id"}, "task": {"$ref": "#/$defs/Task"}, "artifact": {"$ref": "#/$defs/ArtifactRef"}, "producer": {"$ref": "#/$defs/ProducerRevision"}}
+    },
+    "AnalysisDocument": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "analysis_id", "track_id", "run_id", "created_at", "status", "media", "profile_revision", "fusion_revision", "task_outcomes", "facts", "observation_sets", "embeddings", "warnings"],
+      "properties": {
+        "schema_version": {"const": "analysis-document/1.0"}, "analysis_id": {"$ref": "#/$defs/Id"}, "track_id": {"$ref": "#/$defs/Id"}, "run_id": {"$ref": "#/$defs/Id"}, "created_at": {"type": "string", "format": "date-time"},
+        "status": {"enum": ["empty", "succeeded", "partial_success"]}, "media": {"$ref": "#/$defs/CanonicalAudioArtifact"}, "profile_revision": {"$ref": "#/$defs/Revision"}, "fusion_revision": {"$ref": "#/$defs/Revision"},
+        "task_outcomes": {"type": "array", "items": {"$ref": "#/$defs/TaskOutcome"}}, "facts": {"type": "array", "maxItems": 10000, "items": {"$ref": "#/$defs/AnalysisFact"}},
+        "observation_sets": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/ObservationSetRef"}}, "embeddings": {"type": "array", "items": {"$ref": "#/$defs/EmbeddingRef"}}, "warnings": {"type": "array", "items": {"$ref": "#/$defs/Warning"}}
+      }
+    },
+    "AnalysisJob": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "job_id", "principal_id", "track_id", "profile_revision", "input_sha256", "state", "attempt", "generation", "idempotency_key", "request_sha256", "cancel_requested", "created_at", "updated_at", "lease"],
+      "properties": {
+        "schema_version": {"const": "analysis-job/1.0"}, "job_id": {"$ref": "#/$defs/Id"}, "principal_id": {"$ref": "#/$defs/Id"}, "track_id": {"$ref": "#/$defs/Id"}, "profile_revision": {"$ref": "#/$defs/Revision"},
+        "input_sha256": {"$ref": "#/$defs/Sha256"}, "state": {"$ref": "#/$defs/JobState"}, "attempt": {"type": "integer", "minimum": 1}, "generation": {"type": "integer", "minimum": 0},
+        "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 128}, "request_sha256": {"$ref": "#/$defs/Sha256"}, "cancel_requested": {"type": "boolean"},
+        "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"},
+        "lease": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Lease"}]}
+      }
+    },
+    "Lease": {
+      "type": "object", "additionalProperties": false, "required": ["worker_id", "token", "expires_at"],
+      "properties": {"worker_id": {"$ref": "#/$defs/Id"}, "token": {"type": "string", "minLength": 16}, "expires_at": {"type": "string", "format": "date-time"}}
+    },
+    "AnalysisRun": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "run_id", "job_id", "attempt", "input_sha256", "profile_revision", "model_revisions", "representation_revisions", "code_sha256", "environment_sha256", "config_sha256", "seed", "state", "task_outcomes", "artifacts"],
+      "properties": {
+        "schema_version": {"const": "analysis-run/1.0"}, "run_id": {"$ref": "#/$defs/Id"}, "job_id": {"$ref": "#/$defs/Id"}, "attempt": {"type": "integer", "minimum": 1},
+        "input_sha256": {"$ref": "#/$defs/Sha256"}, "profile_revision": {"$ref": "#/$defs/Revision"},
+        "model_revisions": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/Revision"}}, "representation_revisions": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/Revision"}},
+        "code_sha256": {"$ref": "#/$defs/Sha256"}, "environment_sha256": {"$ref": "#/$defs/Sha256"}, "config_sha256": {"$ref": "#/$defs/Sha256"}, "seed": {"type": "integer", "minimum": 0}, "state": {"$ref": "#/$defs/JobState"},
+        "task_outcomes": {"type": "array", "items": {"$ref": "#/$defs/TaskOutcome"}}, "artifacts": {"type": "array", "items": {"$ref": "#/$defs/ArtifactRef"}}
+      }
+    },
+    "JsonValue": {},
+    "CorrectionEvent": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "correction_id", "track_id", "analysis_id", "analysis_sha256", "target_path", "old_value", "new_value", "author_id", "created_at", "reason", "supersedes_id"],
+      "properties": {
+        "schema_version": {"const": "correction-event/1.0"}, "correction_id": {"$ref": "#/$defs/Id"}, "track_id": {"$ref": "#/$defs/Id"}, "analysis_id": {"$ref": "#/$defs/Id"}, "analysis_sha256": {"$ref": "#/$defs/Sha256"},
+        "target_path": {"type": "string", "pattern": "^/facts/[0-9]+/(label|location|score)$"}, "old_value": {"$ref": "#/$defs/JsonValue"}, "new_value": {"$ref": "#/$defs/JsonValue"},
+        "author_id": {"$ref": "#/$defs/Id"}, "created_at": {"type": "string", "format": "date-time"}, "reason": {"type": "string", "minLength": 1, "maxLength": 2000}, "supersedes_id": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]}
+      }
+    },
+    "MemoryItem": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "memory_id", "scope", "scope_id", "source_ids", "purpose", "created_at", "expires_at", "content", "training_consent_event_id"],
+      "properties": {
+        "schema_version": {"const": "memory-item/1.0"}, "memory_id": {"$ref": "#/$defs/Id"}, "scope": {"enum": ["session", "track", "project", "user", "global"]}, "scope_id": {"$ref": "#/$defs/Id"},
+        "source_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/Id"}}, "purpose": {"enum": ["analysis", "preference", "correction", "reference"]},
+        "created_at": {"type": "string", "format": "date-time"}, "expires_at": {"type": ["string", "null"], "format": "date-time"}, "content": {"type": "string", "minLength": 1, "maxLength": 8000},
+        "training_consent_event_id": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]}
+      }
+    },
+    "ModelRevision": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "revision", "task", "weights", "adapter", "framework", "upstream_revision", "input_contract", "output_contract", "label_set", "license_record", "model_card", "evaluation_report", "calibration", "stage", "rollback_revision"],
+      "properties": {
+        "schema_version": {"const": "model-revision/1.0"}, "revision": {"$ref": "#/$defs/Revision"}, "task": {"$ref": "#/$defs/Task"}, "weights": {"$ref": "#/$defs/ArtifactRef"},
+        "adapter": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_]*$"}, "framework": {"type": "string", "minLength": 1}, "upstream_revision": {"type": "string", "minLength": 1},
+        "input_contract": {"$ref": "#/$defs/Revision"}, "output_contract": {"const": "observation-set/1.0"}, "label_set": {"$ref": "#/$defs/Revision"}, "license_record": {"$ref": "#/$defs/ArtifactRef"}, "model_card": {"$ref": "#/$defs/ArtifactRef"},
+        "evaluation_report": {"oneOf": [{"$ref": "#/$defs/ArtifactRef"}, {"type": "null"}]}, "calibration": {"$ref": "#/$defs/Calibration"},
+        "stage": {"enum": ["development", "candidate", "shadow", "production", "retired"]}, "rollback_revision": {"oneOf": [{"$ref": "#/$defs/Revision"}, {"type": "null"}]}
+      },
+      "if": {"properties": {"stage": {"const": "production"}}},
+      "then": {"properties": {"evaluation_report": {"$ref": "#/$defs/ArtifactRef"}, "rollback_revision": {"$ref": "#/$defs/Revision"}}}
+    },
+    "RepresentationRevision": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "revision", "kind", "code_sha256", "config", "config_sha256", "sample_rate_hz", "hop_length", "frame_anchor", "delay_compensation_samples"],
+      "properties": {
+        "schema_version": {"const": "representation-revision/1.0"}, "revision": {"$ref": "#/$defs/Revision"}, "kind": {"enum": ["pcm", "log_mel", "cqt", "chroma", "onset", "loudness", "embedding"]},
+        "code_sha256": {"$ref": "#/$defs/Sha256"}, "config": {"type": "object", "additionalProperties": {"$ref": "#/$defs/JsonValue"}}, "config_sha256": {"$ref": "#/$defs/Sha256"},
+        "sample_rate_hz": {"type": "integer", "minimum": 1}, "hop_length": {"type": "integer", "minimum": 1}, "frame_anchor": {"enum": ["left_edge", "center"]}, "delay_compensation_samples": {"type": "integer"}
+      }
+    },
+    "ProblemDetails": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "type", "title", "status", "code", "detail", "instance", "request_id"],
+      "properties": {
+        "schema_version": {"const": "problem-details/1.0"}, "type": {"type": "string", "format": "uri"}, "title": {"type": "string", "minLength": 1, "maxLength": 200}, "status": {"type": "integer", "minimum": 400, "maximum": 599},
+        "code": {"enum": ["unsupported_media", "corrupt_media", "duration_limit", "profile_unavailable", "model_failed", "quota_exceeded", "forbidden", "invalid_contract", "idempotency_conflict", "cancelled", "stale_lease"]},
+        "detail": {"type": "string", "maxLength": 2000}, "instance": {"type": "string", "format": "uri-reference"}, "request_id": {"$ref": "#/$defs/Id"},
+        "field_errors": {"type": "array", "items": {"type": "string", "maxLength": 500}}
+      }
+    },
+    "ConsentEvent": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "event_id", "principal_id", "purpose", "scope_id", "state", "created_at", "policy_revision", "supersedes_id"],
+      "properties": {
+        "schema_version": {"const": "consent-event/1.0"}, "event_id": {"$ref": "#/$defs/Id"}, "principal_id": {"$ref": "#/$defs/Id"},
+        "purpose": {"enum": ["telemetry", "product_memory", "training_data", "private_audio_processing"]}, "scope_id": {"$ref": "#/$defs/Id"}, "state": {"enum": ["unknown", "granted", "denied", "revoked"]},
+        "created_at": {"type": "string", "format": "date-time"}, "policy_revision": {"$ref": "#/$defs/Revision"}, "supersedes_id": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]}
+      }
+    },
+    "NarrativeClaim": {
+      "type": "object", "additionalProperties": false, "required": ["claim_id", "fact_path", "fact_id", "evidence", "score", "wording"],
+      "properties": {
+        "claim_id": {"$ref": "#/$defs/Id"}, "fact_path": {"type": "string", "pattern": "^/facts/[0-9]+$"}, "fact_id": {"$ref": "#/$defs/Id"},
+        "evidence": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/EvidenceRef"}}, "score": {"$ref": "#/$defs/Score"}, "wording": {"enum": ["estimate", "uncertain"]}
+      }
+    },
+    "NarrativeDocument": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "narrative_id", "analysis_id", "analysis_sha256", "claims"],
+      "properties": {
+        "schema_version": {"const": "narrative-document/1.0"}, "narrative_id": {"$ref": "#/$defs/Id"}, "analysis_id": {"$ref": "#/$defs/Id"}, "analysis_sha256": {"$ref": "#/$defs/Sha256"},
+        "claims": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/NarrativeClaim"}}
+      }
+    }
+  }
+}
