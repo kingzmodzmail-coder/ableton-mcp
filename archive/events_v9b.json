@@ -1,0 +1,11 @@
+[
+  {
+    "event": "candidates_measured",
+    "uniq": "delivery-v9-three",
+    "delivered": {"A": 309, "B": 306, "C": 310},
+    "rejected": {"307": "kurtosis 19.7, level clamped 4 dB low, tp -0.14", "308": "kurtosis 38.3, clips on encode (+0.59 dBTP)", "311": "kurtosis 16.6, tempo estimate ambiguous"},
+    "user_words": null,
+    "status": "awaiting user listening",
+    "notes": "Six seeds generated; three clean takes delivered via telegram as A/B/C (mp3 preview + new-bars wav each). Approved PCM byte-identical in all."
+  }
+]

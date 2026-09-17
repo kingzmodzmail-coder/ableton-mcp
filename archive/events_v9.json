@@ -1,0 +1,20 @@
+[
+  {
+    "event": "user_approval",
+    "uniq": "approval-v8-20260913",
+    "scope": "dry continuation v8: eight generated bars at 0:35.34-0:47.12 inside the 58.90-second preview, original return preserved",
+    "user_words": "Good track continue",
+    "file": "C:\\Users\\Gebruiker\\ableton-mcp\\.producer\\projects\\how-about-everyone-else\\dry-next-v8\\Dry approved passage plus next eight bars.wav",
+    "sha256": "8a9ca02ffc771c42251ce0dea62dac10b4bb1da83d2c17aa570b81e324980cf8",
+    "added_echo_enabled": false,
+    "next_step": "Next eight-bar unit (three candidates, seeds 306/307/308); approval does not extend automatically to newly generated material"
+  },
+  {
+    "event": "candidate_delivery",
+    "uniq": "delivery-v9-candidates",
+    "scope": "dry continuation v9: three candidate eight-bar continuations with surrounding approved audio",
+    "seeds": [306, 307, 308],
+    "delivered_via": "telegram (slack bot token lacks files:write/files:read)",
+    "status": "awaiting user listening"
+  }
+]
