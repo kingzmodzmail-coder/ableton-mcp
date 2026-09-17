@@ -248,7 +248,7 @@ def install_remote_script(
                 "script_version": EXPECTED_REMOTE_SCRIPT_VERSION,
                 "backup": str(backup) if backup else None,
             })
-            logger.info("Remote Script %s → %s", status, dest)
+            logger.info("Remote Script %s -> %s", status, dest)
         except Exception as e:
             results.append({
                 "path": str(root / REMOTE_SCRIPT_FOLDER_NAME / "__init__.py"),
@@ -307,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Missing {repo}")
             return 1
         shutil.copy2(repo, dest)
-        print(f"Synced {repo} → {dest}")
+        print(f"Synced {repo} -> {dest}")
         return 0
 
     if args.list_targets:
@@ -330,7 +330,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         "\nIf Ableton was already open: restart Live, or re-select AbletonMCP "
-        "under Preferences → Link/Tempo/MIDI → Control Surface."
+        "under Preferences -> Link/Tempo/MIDI -> Control Surface."
     )
     return 0
 
