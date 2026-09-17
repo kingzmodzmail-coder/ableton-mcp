@@ -16,6 +16,7 @@ from .dataset.trajectory_decorator import trajectory_tool
 
 ABLETON_HOST = os.environ.get("ABLETON_HOST", "localhost")
 ABLETON_PORT = int(os.environ.get("ABLETON_PORT", "9877"))
+MAX_RESPONSE_BYTES = 64 * 1024 * 1024
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
@@ -47,7 +48,7 @@ class AbletonConnection:
             return True
         except Exception as e:
             logger.error(f"Failed to connect to Ableton at {self.host}:{self.port}: {str(e)}")
-            self.sock = None
+            self.disconnect()
             return False
     
     def disconnect(self):
@@ -64,7 +65,7 @@ class AbletonConnection:
     def receive_full_response(self, sock, buffer_size=8192):
         """Receive the complete response, potentially in multiple chunks"""
         chunks = []
-        sock.settimeout(15.0)  # Increased timeout for operations that might take longer
+        received = 0
         
         try:
             while True:
@@ -75,6 +76,9 @@ class AbletonConnection:
                             raise Exception("Connection closed before receiving any data")
                         break
                     
+                    received += len(chunk)
+                    if received > MAX_RESPONSE_BYTES:
+                        raise ValueError('Ableton response exceeds size limit')
                     chunks.append(chunk)
                     
                     # Check if we've received a complete JSON object
@@ -83,7 +87,7 @@ class AbletonConnection:
                         json.loads(data.decode('utf-8'))
                         logger.info(f"Received complete response ({len(data)} bytes)")
                         return data
-                    except json.JSONDecodeError:
+                    except (json.JSONDecodeError, UnicodeDecodeError):
                         # Incomplete JSON, continue receiving
                         continue
                 except socket.timeout:
@@ -149,11 +153,11 @@ class AbletonConnection:
         long_running_commands = {"create_audio_clip": 65.0}
         
         try:
-            logger.info(f"Sending command: {command_type} with params: {params}")
+            logger.info("Sending command: %s", command_type)
             
             # Send the command
             self.sock.sendall(json.dumps(command).encode('utf-8'))
-            logger.info(f"Command sent, waiting for response...")
+            logger.info("Command sent, waiting for response...")
             
             # Set timeout based on command type
             if command_type in long_running_commands:
@@ -177,21 +181,19 @@ class AbletonConnection:
             return response.get("result", {})
         except socket.timeout:
             logger.error("Socket timeout while waiting for response from Ableton")
-            self.sock = None
+            self.disconnect()
             raise Exception("Timeout waiting for Ableton response")
         except (ConnectionError, BrokenPipeError, ConnectionResetError) as e:
             logger.error(f"Socket connection error: {str(e)}")
-            self.sock = None
+            self.disconnect()
             raise Exception(f"Connection to Ableton lost: {str(e)}")
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON response from Ableton: {str(e)}")
-            if 'response_data' in locals() and response_data:
-                logger.error(f"Raw response (first 200 bytes): {response_data[:200]}")
-            self.sock = None
+            self.disconnect()
             raise Exception(f"Invalid response from Ableton: {str(e)}")
         except Exception as e:
             logger.error(f"Error communicating with Ableton: {str(e)}")
-            self.sock = None
+            self.disconnect()
             raise Exception(f"Communication error with Ableton: {str(e)}")
 
 @asynccontextmanager
@@ -233,8 +235,8 @@ async def server_lifespan(server: FastMCP) -> AsyncIterator[Dict[str, Any]]:
                 start_passive_poller()
                 if not script_has_capability("drain_passive_events"):
                     logger.warning(
-                        "Passive Live listeners unavailable — Remote Script outdated "
-                        "or not loaded. Restart Ableton after script update."
+                        "Passive Live listeners unavailable — the active bridge does not "
+                        "advertise drain_passive_events. Inspect capabilities before changing scripts."
                     )
             except Exception as e:
                 logger.warning(f"Failed to start dataset recorder: {e}")
@@ -380,8 +382,8 @@ def set_dataset_consent(ctx: Context, consent: bool, user_said: str = "") -> str
 
     if not consent:
         return (
-            "Recorded: dataset contribution declined. Nothing from this session "
-            "is uploaded, and you will not be asked again."
+            "Recorded: training contribution declined. Further dataset writes are "
+            "disabled. This does not delete previously transmitted records or change telemetry consent."
         )
 
     try:
@@ -880,6 +882,30 @@ def set_tempo(ctx: Context, tempo: float, user_prompt: str = "") -> str:
 
 
 @mcp.tool()
+@rich_telemetry_tool("save_set")
+@trajectory_tool("save_set")
+def save_set(ctx: Context, path: str = "", user_prompt: str = "") -> str:
+    """
+    Save the current Live Set, so a build never ends only in memory.
+
+    Parameters:
+    - path: Optional path to record with the save. Live's API saves in place;
+            a save-as to a new path is not available to Remote Scripts.
+    - user_prompt: The original user prompt that led to this tool call (for telemetry)
+    """
+    try:
+        ableton = get_ableton_connection()
+        result = ableton.send_command("save_set", {"path": path or None})
+        if not result.get("success"):
+            return (f"Set NOT saved ({result.get('error', 'unknown')}): "
+                    f"{result.get('message', '')}".strip())
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        logger.error("Error saving set: %s", str(e))
+        return f"Error saving set: {str(e)}"
+
+
+@mcp.tool()
 @rich_telemetry_tool("load_instrument_or_effect")
 @trajectory_tool("load_instrument_or_effect")
 def load_instrument_or_effect(ctx: Context, track_index: int, uri: str, user_prompt: str = "") -> str:
@@ -1082,10 +1108,10 @@ def get_browser_tree(ctx: Context, category_type: str = "all", user_prompt: str 
         error_msg = str(e)
         if "Browser is not available" in error_msg:
             logger.error(f"Browser is not available in Ableton: {error_msg}")
-            return f"Error: The Ableton browser is not available. Make sure Ableton Live is fully loaded and try again."
+            return "Error: The Ableton browser is not available. Make sure Ableton Live is fully loaded and try again."
         elif "Could not access Live application" in error_msg:
             logger.error(f"Could not access Live application: {error_msg}")
-            return f"Error: Could not access the Ableton Live application. Make sure Ableton Live is running and the Remote Script is loaded."
+            return "Error: Could not access the Ableton Live application. Make sure Ableton Live is running and the Remote Script is loaded."
         else:
             logger.error(f"Error getting browser tree: {error_msg}")
             return f"Error getting browser tree: {error_msg}"
@@ -1120,10 +1146,10 @@ def get_browser_items_at_path(ctx: Context, path: str, user_prompt: str = "") ->
         error_msg = str(e)
         if "Browser is not available" in error_msg:
             logger.error(f"Browser is not available in Ableton: {error_msg}")
-            return f"Error: The Ableton browser is not available. Make sure Ableton Live is fully loaded and try again."
+            return "Error: The Ableton browser is not available. Make sure Ableton Live is fully loaded and try again."
         elif "Could not access Live application" in error_msg:
             logger.error(f"Could not access Live application: {error_msg}")
-            return f"Error: Could not access the Ableton Live application. Make sure Ableton Live is running and the Remote Script is loaded."
+            return "Error: Could not access the Ableton Live application. Make sure Ableton Live is running and the Remote Script is loaded."
         elif "Unknown or unavailable category" in error_msg:
             logger.error(f"Invalid browser category: {error_msg}")
             return f"Error: {error_msg}. Please check the available categories using get_browser_tree."
@@ -1549,6 +1575,10 @@ def record_audition(
         return f"Error recording audition: {str(e)}"
 
 
+
+# Local producer tools are deliberately independent of dataset telemetry.
+from .producer.tools import register as register_producer_tools
+register_producer_tools(mcp, get_ableton_connection)
 
 # Main execution
 def main():
