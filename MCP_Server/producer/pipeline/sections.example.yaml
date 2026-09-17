@@ -1,0 +1,48 @@
+# Example section map — the arrangement as data.
+# A new track is a new file like this, not new code.
+# Validate with: python -m MCP_Server.producer.cli sections <file>
+
+name: EvAIx_MentalAcid_162
+bpm: 162
+beats_per_bar: 4
+reference: Music/Reference/SunoV6/mental_acid_01.wav   # what QC compares against
+
+sections:
+  - name: intro
+    bars: 32
+    elements: [kick, hats, acid_drift, noise_riser]
+    sub_owner: kick          # exactly one element holds 30–120 Hz here
+    energy: low
+    notes: long intro, filter opens slowly — no commercial silence-then-drop
+
+  - name: build_a
+    bars: 32
+    elements: [kick, hats, perc, acid_drift, bass_303]
+    sub_owner: kick
+    energy: rising
+    notes: 303 enters above 120 Hz, sidechained from the kick
+
+  - name: main_a
+    bars: 48
+    elements: [kick, hats, perc, acid_drift, bass_303, esx_toms]
+    sub_owner: kick
+    energy: high
+
+  - name: break
+    bars: 16
+    elements: [acid_drift, noise_riser, esx_toms]
+    sub_owner: acid_drift    # kick is out, so something else may own the sub
+    energy: low
+    notes: subtractive — mutes and filter, kick returns on the bar
+
+  - name: main_b
+    bars: 48
+    elements: [kick, hats, perc, acid_drift, bass_303, esx_toms, stab]
+    sub_owner: kick
+    energy: peak
+
+  - name: outro
+    bars: 24
+    elements: [kick, hats, acid_drift]
+    sub_owner: kick
+    energy: falling
