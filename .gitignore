@@ -67,9 +67,36 @@ MANIFEST.in
 # Export output — contains collected user session data
 *.jsonl
 exports/
+.producer/
 
 local_tests/
 
 
 # Lock files (optional - uncomment if you don't want to track)
 # uv.lock
+
+# --- Audio and harvested material: never in git (backed up separately) ---
+*.wav
+*.aif
+*.aiff
+*.flac
+*.mp3
+*.ogg
+*.als
+*.asd
+*.adg
+*.adv
+*.alc
+*.zip
+*.7z
+suno-harvest/
+evaix-bridge/samples/
+evaix-bridge/renders/
+**/aftertekno-continuation/
+_to_delete/
+
+# --- Local-only operator scripts (credential lookups, DB probes) ---
+_local/
+*.egg-info/
+.venv/
+archive/*.log

@@ -1,0 +1,20 @@
+# Normalise line endings so text files stop showing up as modified.
+* text=auto eol=lf
+
+# Windows-native tooling keeps CRLF
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Never diff or normalise binary/audio material
+*.wav binary
+*.aif binary
+*.aiff binary
+*.flac binary
+*.mp3 binary
+*.ogg binary
+*.als binary
+*.asd binary
+*.zip binary
+*.7z binary
+uv.lock -diff linguist-generated

@@ -1,0 +1,25 @@
+#!/bin/sh
+# Blocks the two things that must never enter this repo: credential-shaped
+# strings and audio/project binaries. No external tools required.
+# Bypass (deliberately, with a reason): git commit --no-verify
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+blocked=$(printf '%s\n' "$staged" | grep -Ei '\.(wav|aif|aiff|flac|mp3|ogg|als|asd|adg|adv|alc|zip|7z)$')
+if [ -n "$blocked" ]; then
+  echo "pre-commit: audio/project binaries must not be committed:" >&2
+  printf '  %s\n' $blocked >&2
+  echo "Keep them out of git (see .gitignore) and back them up separately." >&2
+  exit 1
+fi
+
+# Credential-shaped strings. Deliberately narrow, to stay usable.
+pattern='(xox[bpaso]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|(password|passwd|api[_-]?key|secret|token)[[:space:]]*[:=][[:space:]]*.\{8,\})'
+hits=$(git diff --cached -U0 -- $staged | grep -nEi "^\+.*$pattern" | grep -vEi 'REDACTED|<[^>]*>|example|placeholder|os\.environ|getenv|\$\{|\bNone\b' | head -20)
+if [ -n "$hits" ]; then
+  echo "pre-commit: possible credential in staged changes:" >&2
+  printf '%s\n' "$hits" | sed -E 's/(=|:)[[:space:]]*\S+/\1 [REDACTED]/g' >&2
+  echo "Move it to .env (settings belong in config.yaml) and commit again." >&2
+  exit 1
+fi
+exit 0
