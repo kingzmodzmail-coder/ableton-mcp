@@ -1,0 +1,20 @@
+{
+  "status": "success",
+  "result": {
+    "track_index": 0,
+    "track_name": "Drift Acid G#m",
+    "clip_count": 1,
+    "clips": [
+      {
+        "name": "acid_Gsm_poly15",
+        "start_time": 0.0,
+        "end_time": 32.0,
+        "length": 32.0,
+        "color": 15029152,
+        "is_midi_clip": true,
+        "is_audio_clip": false,
+        "is_playing": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,131 @@
+=== MENTAL CLEAN DSP LONG classic 303 @ 162.0 N= 1568000 sec/section=35.56 total~568.9s ===
+PARAMS osc= saw resQ= 0.15 16 sections x 24 bars
+DSP: kick HP28+tanh | hats HP200 LP13k | ind HP150 LP9k gate | acid HP60 LP5.5k duck | lim0.92 -9.5 LUFS
+ESX-mastered esx_JunkPerc_mi.wav
+ESX-mastered esx_SynPerc_mi.wav
+ESX-mastered esx_Zap_mi.wav
+ESX-mastered esx_SFX1_mi.wav
+ESX-mastered esx_SFX2_mi.wav
+ESX-mastered esx_Rim1_mi.wav
+ESX-mastered esx_Cowbel_mi.wav
+ESX-mastered esx_HH1C_mi.wav
+ESX-mastered esx_HH7C_noiseish_mi.wav
+ESX-mastered esx_SinKick_mi.wav
+ESX-mastered esx_Noise_mi.wav
+ESX-mastered esx_HH1O_mi.wav
+wrote clank_dsp_baked.wav n= 8748 peak_in 0.9195
+wrote metal_0_dsp.wav n= 23224 peak_in 0.875
+wrote metal_1_dsp.wav n= 7651 peak_in 0.886
+wrote metal_2_dsp.wav n= 21028 peak_in 0.8483
+wrote metal_3_dsp.wav n= 28993 peak_in 0.8835
+wrote noise_short_dsp.wav n= 2866 peak_in 0.7997
+INDUSTRIAL_SAMPLES_USED ['092_JunkPerc.wav', '095_SynPerc.wav', '099_Zap.wav', '102_SFX-1.wav', '103_SFX-2.wav', '045_Rim-1.wav', '088_CowbelSy.wav', '054_HH-1C.wav', '066_HH-7C.wav', '146_SinKick.wav', '200_Noise.wav', '055_HH-1O.wav']
+HAT 066_HH-7C.wav metals 4 clank True
+pattern accents 8 slides 7
+wrote s00_Atm_Kick_A_kick.wav n= 1568000 peak_in 0.9
+wrote s00_Atm_Kick_A_hats.wav n= 1568000 peak_in 0.0
+wrote s00_Atm_Kick_A_oh.wav n= 1568000 peak_in 0.0
+wrote s00_Atm_Kick_A_perc.wav n= 1568000 peak_in 0.55
+wrote s00_Atm_Kick_A_acid_classic.wav n= 1568000 peak_in 0.0
+section 0 Atm_Kick_A acid_mix 0.0 perc_under_db -8.0 sec 35.56
+wrote s01_Atm_Kick_B_kick.wav n= 1568000 peak_in 0.9
+wrote s01_Atm_Kick_B_hats.wav n= 1568000 peak_in 0.72
+wrote s01_Atm_Kick_B_oh.wav n= 1568000 peak_in 0.0
+wrote s01_Atm_Kick_B_perc.wav n= 1568000 peak_in 0.0
+wrote s01_Atm_Kick_B_acid_classic.wav n= 1568000 peak_in 0.0
+section 1 Atm_Kick_B acid_mix 0.0 perc_under_db -8.0 sec 35.56
+wrote s02_Hats_In_kick.wav n= 1568000 peak_in 0.9
+wrote s02_Hats_In_hats.wav n= 1568000 peak_in 0.72
+wrote s02_Hats_In_oh.wav n= 1568000 peak_in 0.0
+wrote s02_Hats_In_perc.wav n= 1568000 peak_in 0.0
+wrote s02_Hats_In_acid_classic.wav n= 1568000 peak_in 0.0
+section 2 Hats_In acid_mix 0.0 perc_under_db -8.0 sec 35.56
+wrote s03_Muted_Acid_kick.wav n= 1568000 peak_in 0.9
+wrote s03_Muted_Acid_hats.wav n= 1568000 peak_in 0.72
+wrote s03_Muted_Acid_oh.wav n= 1568000 peak_in 0.68
+wrote s03_Muted_Acid_perc.wav n= 1568000 peak_in 0.0
+wrote s03_Muted_Acid_acid_classic.wav n= 1568000 peak_in 0.78
+section 3 Muted_Acid acid_mix 0.4 perc_under_db -8.0 sec 35.56
+wrote s04_Clank_Build_kick.wav n= 1568000 peak_in 0.9
+wrote s04_Clank_Build_hats.wav n= 1568000 peak_in 0.72
+wrote s04_Clank_Build_oh.wav n= 1568000 peak_in 0.68
+wrote s04_Clank_Build_perc.wav n= 1568000 peak_in 0.55
+wrote s04_Clank_Build_acid_classic.wav n= 1568000 peak_in 0.78
+section 4 Clank_Build acid_mix 0.46 perc_under_db -7.0 sec 35.56
+wrote s05_Full_Mental_kick.wav n= 1568000 peak_in 0.9
+wrote s05_Full_Mental_hats.wav n= 1568000 peak_in 0.72
+wrote s05_Full_Mental_oh.wav n= 1568000 peak_in 0.68
+wrote s05_Full_Mental_perc.wav n= 1568000 peak_in 0.55
+wrote s05_Full_Mental_acid_classic.wav n= 1568000 peak_in 0.78
+section 5 Full_Mental acid_mix 0.48 perc_under_db -8.0 sec 35.56
+wrote s06_Break_Fragile_kick.wav n= 1568000 peak_in 0.9
+wrote s06_Break_Fragile_hats.wav n= 1568000 peak_in 0.72
+wrote s06_Break_Fragile_oh.wav n= 1568000 peak_in 0.68
+wrote s06_Break_Fragile_perc.wav n= 1568000 peak_in 0.55
+wrote s06_Break_Fragile_acid_classic.wav n= 1568000 peak_in 0.78
+section 6 Break_Fragile acid_mix 0.52 perc_under_db -7.5 sec 35.56
+wrote s07_Peak_A_kick.wav n= 1568000 peak_in 0.9
+wrote s07_Peak_A_hats.wav n= 1568000 peak_in 0.72
+wrote s07_Peak_A_oh.wav n= 1568000 peak_in 0.68
+wrote s07_Peak_A_perc.wav n= 1568000 peak_in 0.55
+wrote s07_Peak_A_acid_classic.wav n= 1568000 peak_in 0.78
+section 7 Peak_A acid_mix 0.48 perc_under_db -6.5 sec 35.56
+wrote s08_Peak_B_kick.wav n= 1568000 peak_in 0.9
+wrote s08_Peak_B_hats.wav n= 1568000 peak_in 0.72
+wrote s08_Peak_B_oh.wav n= 1568000 peak_in 0.68
+wrote s08_Peak_B_perc.wav n= 1568000 peak_in 0.55
+wrote s08_Peak_B_acid_classic.wav n= 1568000 peak_in 0.78
+section 8 Peak_B acid_mix 0.48 perc_under_db -6.5 sec 35.56
+wrote s09_Break2_Mute_kick.wav n= 1568000 peak_in 0.9
+wrote s09_Break2_Mute_hats.wav n= 1568000 peak_in 0.72
+wrote s09_Break2_Mute_oh.wav n= 1568000 peak_in 0.0
+wrote s09_Break2_Mute_perc.wav n= 1568000 peak_in 0.55
+wrote s09_Break2_Mute_acid_classic.wav n= 1568000 peak_in 0.78
+section 9 Break2_Mute acid_mix 0.5 perc_under_db -8.0 sec 35.56
+wrote s10_Return_Hard_kick.wav n= 1568000 peak_in 0.9
+wrote s10_Return_Hard_hats.wav n= 1568000 peak_in 0.72
+wrote s10_Return_Hard_oh.wav n= 1568000 peak_in 0.68
+wrote s10_Return_Hard_perc.wav n= 1568000 peak_in 0.55
+wrote s10_Return_Hard_acid_classic.wav n= 1568000 peak_in 0.78
+section 10 Return_Hard acid_mix 0.48 perc_under_db -8.0 sec 35.56
+wrote s11_Dual_Energy_kick.wav n= 1568000 peak_in 0.9
+wrote s11_Dual_Energy_hats.wav n= 1568000 peak_in 0.72
+wrote s11_Dual_Energy_oh.wav n= 1568000 peak_in 0.68
+wrote s11_Dual_Energy_perc.wav n= 1568000 peak_in 0.55
+wrote s11_Dual_Energy_acid_classic.wav n= 1568000 peak_in 0.78
+section 11 Dual_Energy acid_mix 0.5 perc_under_db -7.5 sec 35.56
+wrote s12_Acid_Exposed_kick.wav n= 1568000 peak_in 0.9
+wrote s12_Acid_Exposed_hats.wav n= 1568000 peak_in 0.72
+wrote s12_Acid_Exposed_oh.wav n= 1568000 peak_in 0.68
+wrote s12_Acid_Exposed_perc.wav n= 1568000 peak_in 0.55
+wrote s12_Acid_Exposed_acid_classic.wav n= 1568000 peak_in 0.78
+section 12 Acid_Exposed acid_mix 0.58 perc_under_db -7.5 sec 35.56
+wrote s13_Final_Peak_A_kick.wav n= 1568000 peak_in 0.9
+wrote s13_Final_Peak_A_hats.wav n= 1568000 peak_in 0.72
+wrote s13_Final_Peak_A_oh.wav n= 1568000 peak_in 0.68
+wrote s13_Final_Peak_A_perc.wav n= 1568000 peak_in 0.55
+wrote s13_Final_Peak_A_acid_classic.wav n= 1568000 peak_in 0.78
+section 13 Final_Peak_A acid_mix 0.48 perc_under_db -6.5 sec 35.56
+wrote s14_Final_Peak_B_kick.wav n= 1568000 peak_in 0.9
+wrote s14_Final_Peak_B_hats.wav n= 1568000 peak_in 0.72
+wrote s14_Final_Peak_B_oh.wav n= 1568000 peak_in 0.68
+wrote s14_Final_Peak_B_perc.wav n= 1568000 peak_in 0.55
+wrote s14_Final_Peak_B_acid_classic.wav n= 1568000 peak_in 0.78
+section 14 Final_Peak_B acid_mix 0.5 perc_under_db -6.5 sec 35.56
+wrote s15_Outro_Strip_kick.wav n= 1568000 peak_in 0.9
+wrote s15_Outro_Strip_hats.wav n= 1568000 peak_in 0.72
+wrote s15_Outro_Strip_oh.wav n= 1568000 peak_in 0.0
+wrote s15_Outro_Strip_perc.wav n= 1568000 peak_in 0.55
+wrote s15_Outro_Strip_acid_classic.wav n= 1568000 peak_in 0.78
+section 15 Outro_Strip acid_mix 0.22 perc_under_db -10.0 sec 35.56
+=== Bounce MentalClean_Long MP3 ===
+ffmpeg master OK
+MP3 C:\Users\Gebruiker\Downloads\EvAIx_LiveSet_MentalClean_Long_162.mp3 dur 568.89
+=== Ableton load 8 scenes covering 16-section arc ===
+OK snapshot
+OK tempo 162
+OK stop
+tracks {'Acid 303 Poly': 0, 'ESX Drum Rack': 1, 'E-Kick': 2, 'E-OHat': 3, 'CRISP_e2e_kick': 4, 'Tholin Bass': 5, 'E-Hats': 6, 'E-Bass': 7, 'E-Perc': 8, 'Acid 303': 9, 'E-Mental': 10, 'E-Atm': 11, 'E2S Jam': 12, 'ESX Jam': 13, 'ES1 90s': 14, 'E-DrumLP': 15}
+silenced E-Mental 10
+silenced E-Atm 11
+silenced E2S Jam 12

@@ -1,0 +1,111 @@
+=== ESX-1 Valve Force Live @ 162.0 bars/scene 24 sec/scene=35.56 ===
+VALVE asymmetric tanh Tube Gain=2.15 + mild even harmonic bias + alimiter
+STRETCH_METHOD_PLANNED ffmpeg rubberband (tempo only, pitch preserve)
+ESX-mastered esx_SinKick.wav
+ESX-mastered esx_HH1C.wav
+ESX-mastered esx_HH1O.wav
+ESX-mastered esx_Rim1.wav
+ESX-mastered esx_SD1.wav
+ESX-mastered esx_JunkPerc.wav
+ESX-mastered esx_SynPerc.wav
+ESX-mastered stretch_raw_189_SynLP-1.wav
+STRETCH rubberband 189_SynLP-1.wav dur 3.826->2.963 tempo=1.2913
+ONESHOTS ['146_SinKick.wav', '054_HH-1C.wav', '055_HH-1O.wav', '045_Rim-1.wav', '021_SD-1.wav', '092_JunkPerc.wav', '095_SynPerc.wav', 'STRETCH:189_SynLP-1.wav']
+STRETCH_SRC 189_SynLP-1.wav METHOD ffmpeg rubberband (tempo only, pitch preserve)
+scene 0 Intro_Kick stretch_peak 0.0
+scene 1 Hats_In stretch_peak 0.0
+scene 2 Acid_Under stretch_peak 0.0
+scene 3 Stretch_Roll stretch_peak 0.8363
+scene 4 Full_Groove stretch_peak 0.9556
+scene 5 Break_Filter stretch_peak 1.1517
+scene 6 Peak_Drive stretch_peak 0.8924
+scene 7 Outro_Valve stretch_peak 1.0537
+=== Bounce MP3 ===
+MP3 C:\Users\Gebruiker\Downloads\EvAIx_ESX1_ValveForce_Live_162.mp3 dur 284.44
+=== Ableton load ===
+OK snapshot
+OK tempo 162
+OK stop
+tracks {'Acid 303 Poly': 0, 'ESX Drum Rack': 1, 'E-Kick': 2, 'E-OHat': 3, 'CRISP_e2e_kick': 4, 'Tholin Bass': 5, 'E-Hats': 6, 'ESX Stretch': 7, 'E-Perc': 8, 'Acid 303': 9, 'E-Mental': 10, 'E-Atm': 11, 'E2S Jam': 12, 'ESX Jam': 13, 'ES1 90s': 14, 'E-DrumLP': 15}
+silenced E-Mental 10
+silenced E-Atm 11
+silenced E2S Jam 12
+silenced ESX Jam 13
+silenced ES1 90s 14
+silenced E-DrumLP 15
+silenced CRISP_e2e_kick 4
+muted bed CRISP_e2e_kick
+muted bed Tholin Bass
+muted bed E-Mental
+muted bed E-Atm
+muted bed ES1 90s
+muted bed E-DrumLP
+Drift success
+FX try Saturator error Browser item with URI 'query:Audio Effects#Saturator' not found
+FX try Compressor error Browser item with URI 'query:Audio Effects#Compressor' not found
+FX try Saturator error Browser item with URI 'query:Audio Effects#Saturator' not found
+FX try Compressor error Browser item with URI 'query:Audio Effects#Compressor' not found
+ABLETON_FX []
+OK audio Intro_Kick_kick -> 2 0
+OK audio Hats_In_kick -> 2 1
+OK audio Hats_In_hats -> 6 1
+OK audio Acid_Under_kick -> 2 2
+OK audio Acid_Under_hats -> 6 2
+OK audio Acid_Under_oh -> 3 2
+OK audio Acid_Under_saw303 -> 9 2
+OK midi Acid_Under_drift
+OK audio Stretch_Roll_kick -> 2 3
+OK audio Stretch_Roll_hats -> 6 3
+OK audio Stretch_Roll_oh -> 3 3
+OK audio Stretch_Roll_junk -> 8 3
+OK audio Stretch_Roll_stretch -> 13 3
+OK audio Stretch_Roll_saw303 -> 9 3
+OK midi Stretch_Roll_drift
+OK audio Full_Groove_kick -> 2 4
+OK audio Full_Groove_hats -> 6 4
+OK audio Full_Groove_oh -> 3 4
+OK audio Full_Groove_junk -> 8 4
+OK audio Full_Groove_stretch -> 13 4
+OK audio Full_Groove_saw303 -> 9 4
+OK midi Full_Groove_drift
+OK audio Break_Filter_kick -> 2 5
+OK audio Break_Filter_hats -> 6 5
+OK audio Break_Filter_oh -> 3 5
+OK audio Break_Filter_junk -> 8 5
+OK audio Break_Filter_stretch -> 13 5
+OK audio Break_Filter_saw303 -> 9 5
+OK midi Break_Filter_drift
+OK audio Peak_Drive_kick -> 2 6
+OK audio Peak_Drive_hats -> 6 6
+OK audio Peak_Drive_oh -> 3 6
+OK audio Peak_Drive_junk -> 8 6
+OK audio Peak_Drive_stretch -> 13 6
+OK audio Peak_Drive_saw303 -> 9 6
+OK midi Peak_Drive_drift
+OK audio Outro_Valve_kick -> 2 7
+OK audio Outro_Valve_hats -> 6 7
+OK audio Outro_Valve_stretch -> 13 7
+OK audio Outro_Valve_saw303 -> 9 7
+OK midi Outro_Valve_drift
+=== Fire Peak_Drive row 6 + start ===
+FIRE kick
+FIRE hats
+FIRE oh
+FIRE perc
+FIRE stretch
+FIRE acid_audio
+FIRE acid_midi
+OK start_playback
+tempo 162.0 is_playing True
+VALVE_FORCE asymmetric tanh Tube Gain=2.15 + mild even harmonic bias + alimiter
+STRETCH_METHOD ffmpeg rubberband (tempo only, pitch preserve)
+STRETCH_SRC 189_SynLP-1.wav
+ONESHOTS ['146_SinKick.wav', '054_HH-1C.wav', '055_HH-1O.wav', '045_Rim-1.wav', '021_SD-1.wav', '092_JunkPerc.wav', '095_SynPerc.wav', 'STRETCH:189_SynLP-1.wav']
+FIRED Peak_Drive ['kick', 'hats', 'oh', 'perc', 'stretch', 'acid_audio', 'acid_midi']
+SCENES ['Intro_Kick', 'Hats_In', 'Acid_Under', 'Stretch_Roll', 'Full_Groove', 'Break_Filter', 'Peak_Drive', 'Outro_Valve']
+MP3_PATH C:\Users\Gebruiker\Downloads\EvAIx_ESX1_ValveForce_Live_162.mp3
+MP3_DURATION_SEC 284.44
+IS_PLAYING True
+TEMPO 162.0
+ERRORS []
+DONE build_esx1_valveforce_live

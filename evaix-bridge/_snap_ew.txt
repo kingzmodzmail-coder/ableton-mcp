@@ -1,0 +1,2 @@
+usage: ableton_cmd.py [-h] [--params PARAMS] [--timeout TIMEOUT] command
+ableton_cmd.py: error: unrecognized arguments: -inputFormat xml -outputFormat xml

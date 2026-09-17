@@ -1,0 +1,20 @@
+{
+  "goal": "Create an original eight-bar G-sharp minor acid sketch in an empty slot",
+  "start_beat": 456,
+  "bars": 8,
+  "actions": [
+    {
+      "tool": "create_midi_clip",
+      "track_index": 0,
+      "clip_index": 8,
+      "length": 32,
+      "name": "Producer sketch G#m",
+      "notes": [
+        {"pitch": 32, "start_time": 0, "duration": 0.7, "velocity": 112},
+        {"pitch": 39, "start_time": 0.75, "duration": 0.2, "velocity": 78},
+        {"pitch": 44, "start_time": 1.5, "duration": 0.3, "velocity": 92},
+        {"pitch": 37, "start_time": 3.25, "duration": 0.2, "velocity": 85}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+=== CLEAN drum loops @ 162.0 SinKick ONLY ===
+wrote ew_kick_162.wav peak 0.9288
+wrote ew_kick_hard_162.wav peak 1.0589
+wrote ew_hats_sparse_162.wav peak 0.72
+wrote ew_hats_dense_162.wav peak 0.7131
+wrote ew_hats_hard_162.wav peak 0.82
+wrote ew_ohat_162.wav peak 0.811
+wrote ew_ohat_hard_162.wav peak 0.9566
+wrote ew_ride_162.wav peak 0.609
+wrote ew_perc_light_162.wav peak 0.4
+wrote ew_perc_tribal_162.wav peak 0.85
+wrote ew_perc_hard_162.wav peak 0.95
+MP3 already exists, skip rebuild C:\Users\Gebruiker\Downloads\EvAIx_EvolvingWild_CleanLive_162.mp3 2846346
+=== Ableton CLEAN Evolving Wild ===
+OK snapshot
+OK tempo 162
+tracks: {'1-Drift': 0, 'ESX Drum Rack': 1, 'E-Kick': 2, 'E-OHat': 3, 'CRISP_e2e_kick': 4, 'Tholin Bass': 5, 'E-Hats': 6, 'E-Bass': 7, 'E-Perc': 8, 'E-Syn': 9, 'E-Mental': 10, 'E-Atm': 11, 'E2S Jam': 12, 'ESX Jam': 13, 'ES1 90s': 14, 'E-DrumLP': 15}
+Drift Bass success 
+cleared noisy track 11
+cleared noisy track 10
+cleared noisy track 9
+OK audio Kick_In_kick -> 2 1
+OK audio Hats_In_kick -> 2 2
+OK audio Hats_In_hats -> 6 2
+OK audio Acid_Muted_kick -> 2 3
+OK audio Acid_Muted_hats -> 6 3
+OK audio Drop_Clean_kick -> 2 4
+OK audio Drop_Clean_hats -> 6 4
+OK audio Drop_Clean_oh -> 3 4
+OK audio Drop_Clean_perc -> 8 4
+OK audio Tribal_Add_kick -> 2 5
+OK audio Tribal_Add_hats -> 6 5
+OK audio Tribal_Add_oh -> 3 5
+OK audio Tribal_Add_perc -> 8 5
+OK audio Break_Fragile_oh -> 3 6
+OK audio Peak_Full_kick -> 2 7
+OK audio Peak_Full_hats -> 6 7
+OK audio Peak_Full_oh -> 3 7
+OK audio Peak_Full_perc -> 8 7
+OK midi Peak_Full_bass n= 36
+FIRE E-Kick
+FIRE E-Hats
+FIRE E-OHat
+FIRE E-Perc
+OK start playback keep
+==== RESULT ====
+TEMPO 162.0
+SCENES_PHYSICAL [(0, 'Intro_Atm'), (1, 'Kick_In'), (2, 'Hats_In'), (3, 'Acid_Muted'), (4, 'Drop_Clean'), (5, 'Tribal_Add'), (6, 'Break_Fragile'), (7, 'Peak_Full')]
+SCENES_CONCEPTUAL_12 ['0 Intro_Atm', '1 Kick_In', '2 Hats_In', '3 Acid_Muted', '4 Drop_Clean', '5 Tribal_Add', '6 Break_Fragile', '7 Peak_Full', '8 Peak_MuteGame (folded into Peak/MP3)', '9 Break2 (folded into Break morph)', '10 Return_Hard (Peak_Full harder velocities)', '11 Outro_Strip (MP3 outro)']
+TRACKS_USED {'Acid 303 Poly': None, 'Tholin Bass': 5, 'E-Kick': 2, 'E-Hats': 6, 'E-OHat': 3, 'E-Perc': 8}
+DROP_FIRED ['E-Kick@4', 'E-Hats@4', 'E-OHat@4', 'E-Perc@4']
+MP3_PATH C:\Users\Gebruiker\Downloads\EvAIx_EvolvingWild_CleanLive_162.mp3
+MP3_SIZE 2846346
+MP3_COPY C:\Users\Gebruiker\ableton-mcp\evaix-bridge\samples\electribe-set\EvAIx_EvolvingWild_CleanLive_162.mp3
+NO_GRAINY_ATM True
+SINKICK_ONLY True
+ERRORS []
+DONE EvolvingWild CLEAN 162
