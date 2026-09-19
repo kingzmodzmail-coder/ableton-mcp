@@ -18,3 +18,7 @@
 *.zip binary
 *.7z binary
 uv.lock -diff linguist-generated
+
+# Ableton Live Sets are gzipped XML: diff them as text (see scripts/als_textconv.py)
+*.als diff=als
+*.alp diff=als
