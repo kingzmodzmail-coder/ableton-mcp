@@ -149,6 +149,14 @@ def _looks_like_failure(result: Any) -> bool:
     return head.startswith(_FAILURE_PREFIXES)
 
 
+_BROWSER_ROOTS = frozenset({
+    "sounds", "drums", "instruments", "audio effects", "midi effects",
+    "max for live", "plug-ins", "plugins", "clips", "samples", "packs",
+    "user library", "current project", "collections", "grooves", "templates",
+    "places", "categories", "core library", "videos", "tuning systems",
+})
+
+
 def _is_browser_path(value: str) -> bool:
     """True for a Live browser location, false for anything filesystem-shaped.
 
@@ -167,7 +175,12 @@ def _is_browser_path(value: str) -> bool:
         return False  # Windows separators never appear in browser paths
     if _os_path.splitext(value)[1].lower() in _AUDIO_EXTS:
         return False  # a file, not a browser category
-    return True
+    # Default-deny: "relative and tidy-looking" is not evidence of a browser
+    # category. `Projects/ClientName/Stems` and `OneDrive/Label/unreleased` are
+    # relative, separator-clean and extension-free, yet carry a client name and
+    # a release title straight into the dataset. Require a known Live root.
+    root = value.split("/", 1)[0].strip().lower()
+    return root in _BROWSER_ROOTS
 
 
 def _extract_params(kwargs: dict) -> dict[str, Any]:

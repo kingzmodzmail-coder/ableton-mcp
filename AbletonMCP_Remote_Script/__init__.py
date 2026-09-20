@@ -5,6 +5,7 @@ from _Framework.ControlSurface import ControlSurface
 import os
 import socket
 import json
+import codecs
 import threading
 import time
 import traceback
@@ -21,7 +22,10 @@ HOST = "127.0.0.1"
 
 # A command that never completes must not grow the buffer without bound.
 # Generous enough for a large add_notes_to_clip payload.
-MAX_REQUEST_BYTES = 16 * 1024 * 1024
+MAX_REQUEST_BYTES = 256 * 1024
+# How long a *partially received* frame may stall before we give up on it. An
+# idle connection with an empty buffer is not a stall and is never closed.
+PARTIAL_FRAME_TIMEOUT_SEC = 5.0
 
 # Bumped whenever the TCP command surface changes; the MCP server compares
 # this to EXPECTED_REMOTE_SCRIPT_VERSION.
@@ -56,6 +60,86 @@ SCRIPT_CAPABILITIES = [
 def create_instance(c_instance):
     """Create and return the AbletonMCP script instance"""
     return AbletonMCP(c_instance)
+
+class FramedSocketReceiver(object):
+    """Turn a TCP byte stream into whole JSON commands.
+
+    TCP has no message boundaries, which causes two distinct problems:
+
+    * Fragmentation - one command split across several recv() calls. Already
+      handled before this class existed, by buffering until the text parsed.
+    * Coalescing - several commands arriving in a single recv(). This was the
+      live defect: json.loads() over the whole buffer raises on ``{..}{..}``,
+      and that raise was read as "not all here yet", so the buffer only grew.
+      The connection then never recovered. A streaming raw_decode() peels off
+      one value at a time, so concatenated and newline-delimited commands both
+      work.
+
+    UTF-8 is decoded incrementally, so a multi-byte character straddling a
+    recv() boundary does not raise.
+    """
+
+    def __init__(self, max_pending=None):
+        self._decoder = codecs.getincrementaldecoder("utf-8")(errors="strict")
+        self._text = ""
+        self._json = json.JSONDecoder()
+        # Resolved per call, not captured here: a default argument would bind
+        # the module constant at import time, so raising or lowering the cap at
+        # runtime (or in a test) would silently have no effect.
+        self._max_pending = max_pending
+
+    @property
+    def pending_bytes(self):
+        """Size of the partial frame currently held, in bytes."""
+        return len(self._text.encode("utf-8", "replace"))
+
+    def has_pending(self):
+        """True when a partial frame is waiting for more bytes."""
+        return bool(self._text.strip())
+
+    def reset(self):
+        """Drop the partial frame and any half-decoded character."""
+        self._decoder.reset()
+        self._text = ""
+
+    def feed(self, data):
+        """Add received bytes; return every complete command they contain.
+
+        Raises:
+            ValueError: the pending frame exceeded max_pending, or the bytes
+                were not valid UTF-8. The caller should reset() and report.
+        """
+        try:
+            self._text += self._decoder.decode(data)
+        except UnicodeDecodeError as e:
+            raise ValueError("Invalid UTF-8 in request: " + str(e))
+
+        commands = []
+        index = 0
+        length = len(self._text)
+        while index < length:
+            while index < length and self._text[index] in " \t\r\n":
+                index += 1
+            if index >= length:
+                break
+            try:
+                value, end = self._json.raw_decode(self._text, index)
+            except ValueError:
+                break  # incomplete (or malformed) - wait for more bytes
+            commands.append(value)
+            index = end
+
+        self._text = self._text[index:]
+
+        limit = (self._max_pending if self._max_pending is not None
+                 else MAX_REQUEST_BYTES)
+        if self.pending_bytes > limit:
+            raise ValueError(
+                "Request exceeded %d bytes without a complete JSON command"
+                % limit)
+
+        return commands
+
 
 class AbletonMCP(ControlSurface):
     """AbletonMCP Remote Script for Ableton Live"""
@@ -189,60 +273,58 @@ class AbletonMCP(ControlSurface):
             self.log_message("Server thread error: " + str(e))
     
     def _handle_client(self, client):
-        """Handle communication with a connected client"""
+        """Serve one client: read framed commands, answer each in order."""
         self.log_message("Client handler started")
-        client.settimeout(None)  # No timeout for client socket
-        # Accumulate raw bytes, never per-chunk text. A multi-byte UTF-8
-        # character (an accented clip name, an emoji) can straddle two recv()
-        # boundaries; decoding each chunk on its own raises there, and the old
-        # code answered that with an error frame pushed into a stream the
-        # client was still reading a real response from — desynchronising the
-        # connection for good.
-        buffer = b''
+        # Bounds a *stalled partial frame*, not an idle connection: on timeout
+        # we only complain when bytes are half-received.
+        client.settimeout(PARTIAL_FRAME_TIMEOUT_SEC)
+        receiver = FramedSocketReceiver()
 
         try:
             while self.running:
                 try:
-                    # Receive data
-                    data = client.recv(8192)
+                    try:
+                        data = client.recv(8192)
+                    except socket.timeout:
+                        if receiver.has_pending():
+                            receiver.reset()
+                            raise ValueError(
+                                "Incomplete JSON command after %.1fs"
+                                % PARTIAL_FRAME_TIMEOUT_SEC)
+                        continue  # idle connection, nothing half-read
 
                     if not data:
-                        # Client disconnected
                         self.log_message("Client disconnected")
                         break
 
-                    buffer += data
-
-                    if len(buffer) > MAX_REQUEST_BYTES:
-                        buffer = b''
-                        raise ValueError(
-                            "Request exceeded %d bytes without a complete JSON command"
-                            % MAX_REQUEST_BYTES)
-
                     try:
-                        # Only a fully received command decodes and parses.
-                        # Either error means "not all here yet", so wait.
-                        command = json.loads(buffer.decode('utf-8'))
-                    except (ValueError, UnicodeDecodeError):
-                        continue
+                        commands = receiver.feed(data)
+                    except ValueError:
+                        receiver.reset()
+                        raise
 
-                    buffer = b''  # Clear buffer after successful parse
+                    # One packet may carry several commands; answer each in
+                    # order so a burst is never silently truncated.
+                    for command in commands:
+                        if isinstance(command, dict):
+                            self.log_message(
+                                "Received command: " + str(command.get("type", "unknown")))
+                            response = self._process_command(command)
+                        else:
+                            self.log_message("Received non-object command")
+                            response = {
+                                "status": "error",
+                                "message": "Command must be a JSON object",
+                            }
 
-                    self.log_message("Received command: " + str(command.get("type", "unknown")))
-
-                    # Process the command and get response
-                    response = self._process_command(command)
-
-                    # Send the response with explicit encoding
-                    client.sendall(json.dumps(response).encode('utf-8'))
+                        client.sendall(json.dumps(response).encode('utf-8'))
 
                 except Exception as e:
                     self.log_message("Error handling client data: " + str(e))
                     self.log_message(traceback.format_exc())
 
-                    # Every error that reaches here leaves the request/response
-                    # stream in an unknown state, so report it and close rather
-                    # than carry on out of step with the client.
+                    # The stream position is now unknown, so report and close
+                    # rather than carry on out of step with the client.
                     error_response = {
                         "status": "error",
                         "message": str(e)
@@ -260,7 +342,7 @@ class AbletonMCP(ControlSurface):
             except:
                 pass
             self.log_message("Client handler stopped")
-    
+
     def _process_command(self, command):
         """Process a command from the client and return a response"""
         command_type = command.get("type", "")
